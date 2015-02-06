@@ -4,6 +4,7 @@ selectEventName = 'select'
 checkEventName = 'check'
 
 TemplateClass.created = ->
+  @selectionItemsStyle = new ReactiveVar('')
 
 TemplateClass.rendered = ->
   data = @data
@@ -19,7 +20,12 @@ TemplateClass.rendered = ->
   else
     console.warn('No collection name provided', data)
 
-TemplateClass.destory = ->
+  @autorun =>
+    selectedIds = Template.tree.getSelectedIds(@$tree)
+    @selectionItemsStyle.set(if selectedIds.length > 0 then '' else 'display: none')
+
+TemplateClass.helpers
+  selectionItemsStyle: -> getTemplate().selectionItemsStyle.get()
 
 TemplateClass.events
   'click .create.item': (e, template) -> createItem(template)
@@ -98,4 +104,6 @@ createHandlerContext = (template, extraArgs) ->
 ####################################################################################################
 
 _.extend(TemplateClass, {
+  getTemplate: getTemplate
+  getSettings: getSettings
 })

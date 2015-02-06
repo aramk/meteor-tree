@@ -388,6 +388,7 @@ class TreeModel
 _.extend(TemplateClass, {
   getDomNode: getDomNode
   getTemplate: getTemplate
+  getSettings: getSettings
   expandNode: expandNode
   collapseNode: collapseNode
   selectNode: selectNode
