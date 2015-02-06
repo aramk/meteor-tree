@@ -1,0 +1,135 @@
+@color-line-1: rgba(0, 0, 0, 0.1);
+@color-highlight: #6ECFF5;
+@color-highlight-light: lighten(@color-highlight, 10%);
+@color-highlight-lighter: lighten(@color-highlight, 20%);
+@color-tree-toggler: #999;
+@color-tree-toggler-selected: #009fda;
+@tree-row-height: 1.35rem;
+
+.unselectable {
+  -webkit-user-select: none; /* Chrome/Safari */
+  -moz-user-select: none; /* Firefox */
+  -ms-user-select: none; /* IE10+ */
+  /* Rules below not implemented in browsers yet */
+  -o-user-select: none;
+  user-select: none;
+}
+
+.tree-toolbar {
+
+  > .menu {
+    display: inline-block;
+    &.item {
+      padding: 0;
+    }
+  }
+  .item .icon {
+    margin: 0;
+  }
+  .crud.menu > .item {
+    float: left;
+  }
+  .right.menu .item .ui.input {
+    margin-top: -0.85em;
+    margin-bottom: -0.85em;
+    margin-right: -0.25em;
+  }
+
+  .ui.menu.toolbar {
+    margin: 0;
+  }
+
+  .on-selection-show {
+    padding: 0 !important;
+    display: inline-block;
+    .item {
+      float: left;
+    }
+  }
+
+  &.no-crud-menu {
+    .crud.menu {
+      display: none;
+    }
+    .right.menu {
+      float: none;
+      width: 100%;
+    }
+  }
+
+}
+
+ul.jqtree-tree {
+  .jqtree-element {
+    .checkbox {
+      margin-right: 0.5rem;
+    }
+  }
+  ul.jqtree_common {
+    margin: 0;
+    padding-left: 1.5rem;
+    ul.jqtree_common {
+      padding-left: 1.5rem;
+      li.jqtree_common {
+        padding-left: 1.5rem;
+        &.jqtree-folder {
+          padding-left: none;
+        }
+      }
+    }
+  }
+}
+
+.jqtree-select-row {
+  display: none;
+  position: absolute;
+  height: 1.35rem;
+  width: 10000px;
+  background: @color-highlight-light;
+  top: 0;
+  left: -5000px;
+  &:hover {
+    background: @color-highlight;
+  }
+}
+
+ul.jqtree-tree {
+  li.jqtree-selected {
+    .jqtree-element, .jqtree-element:hover {
+      background: none;
+    }
+    > .jqtree-element {
+      > * {
+        position: relative;
+        z-index: 1;
+      }
+      .jqtree-select-row {
+        position: absolute;
+        display: block;
+        z-index: 0;
+      }
+    }
+    .jqtree-toggler {
+      color: @color-tree-toggler-selected;
+    }
+  }
+  li.jqtree-folder {
+    margin-bottom: 0;
+  }
+  .jqtree-toggler {
+    color: @color-tree-toggler;
+  }
+}
+
+.jqtree-tree {
+  ul.jqtree_common, .jqtree-title {
+    margin: 0;
+  }
+  // This hides the selection-row.
+  overflow: hidden;
+}
+
+.jqtree_common {
+  position: relative;
+  line-height: @tree-row-height;
+}

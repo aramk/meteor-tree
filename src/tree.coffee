@@ -2,6 +2,7 @@ templateName = 'tree'
 TemplateClass = Template[templateName]
 selectEventName = 'select'
 checkEventName = 'check'
+hasSemanticUi = Package['nooitaf:semantic-ui']
 
 TemplateClass.created = ->
   data = @data
@@ -25,7 +26,13 @@ TemplateClass.rendered = ->
   model = @model
   docs = Collections.getItems(items)
   treeData = model.docsToNodeData(docs)
-  treeArgs = {data: treeData, autoOpen: settings.autoExpand, selectable: settings.selectable}
+  treeArgs =
+    data: treeData
+    autoOpen: settings.autoExpand
+    selectable: settings.selectable
+  # if hasSemanticUi
+  #   treeArgs.openedIcon = 
+  #   treeArgs.closedIcon = 
   if settings.checkboxes
     treeArgs.onCreateLi = onCreateNode.bind(null, @)
   $tree.tree(treeArgs)
@@ -74,6 +81,8 @@ TemplateClass.destory = ->
 TemplateClass.events
   'tree.select .tree': (e, template) -> handleSelectionEvent(e, template)
   'tree.click .tree': (e, template) -> handleClickEvent(e, template)
+  'tree.dblclick .tree': (e, template) ->
+    id = e.node.id
 
 ####################################################################################################
 # EXPANSION
@@ -226,7 +235,7 @@ onCreateNode = (template, node, $em) ->
   checkboxes = template.checkboxes ?= []
   if settings.checkboxes
     $title = $('.jqtree-title', $em)
-    $checkbox = $('<input type="checkbox" />')
+    $checkbox = $('<input class="checkbox" type="checkbox" />')
     $title.before($checkbox)
     checkboxes.push($checkbox)
     $checkbox.on 'click', (e) -> e.stopPropagation()
@@ -235,6 +244,8 @@ onCreateNode = (template, node, $em) ->
       isChecked = $checkbox.is(':checked')
       checkEvent[if isChecked then 'checked' else 'unchecked'] = [node.id]
       $tree.trigger(checkEventName, checkEvent)
+  $selectRow = $('<div class="jqtree-select-row"></div>')
+  $('.jqtree-element', $em).append($selectRow)
 
 ####################################################################################################
 # AUXILIARY

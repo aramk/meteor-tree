@@ -17,9 +17,14 @@ Package.onUse(function (api) {
     'reactive-var@1.0.4',
     'aramk:utility@0.5.2',
     'aramk:jqtree@1.0.0'
-    ],'client');
+  ], 'client');
+  // This is weak to allow using other UI frameworks if necessary.
+  api.use(['nooitaf:semantic-ui@1.7.3'], 'client', {weak: true});
   api.addFiles([
     'src/tree.html',
-    'src/tree.coffee'
+    'src/tree.coffee',
+    'src/tree.less',
+    'src/crudTree.html',
+    'src/crudTree.coffee'
   ], 'client');
 });
