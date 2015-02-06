@@ -18,8 +18,12 @@ Package.onUse(function (api) {
     'aramk:utility@0.5.2',
     'aramk:jqtree@1.0.0'
   ], 'client');
-  // This is weak to allow using other UI frameworks if necessary.
-  api.use(['nooitaf:semantic-ui@1.7.3'], 'client', {weak: true});
+  api.use([
+    // Used for calling CRUD routes.
+    'iron:router@1.0.7',
+    // This is weak to allow using other UI frameworks if necessary.
+    'nooitaf:semantic-ui@1.7.3'
+  ], 'client', {weak: true});
   api.addFiles([
     'src/tree.html',
     'src/tree.coffee',
