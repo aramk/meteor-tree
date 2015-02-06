@@ -6,10 +6,17 @@ hasSemanticUi = Package['nooitaf:semantic-ui']
 
 TemplateClass.created = ->
   data = @data
+  settings = getSettings()
+  
   items = data.items
   cursor = Collections.getCursor(items)
-  settings = getSettings()
-  @collection = Collections.get(items)
+  @collection = data.collection ? Collections.get(items)
+  unless @collection
+    throw new Error()
+  unless items
+    items = collection
+  @items = items
+
   @model = data.model ? new TreeModel(collection: @collection)
   @selection = new SelectionModel(settings)
   # Allow modifying the underlying logic of the tree model.
@@ -30,9 +37,6 @@ TemplateClass.rendered = ->
     data: treeData
     autoOpen: settings.autoExpand
     selectable: settings.selectable
-  # if hasSemanticUi
-  #   treeArgs.openedIcon = 
-  #   treeArgs.closedIcon = 
   if settings.checkboxes
     treeArgs.onCreateLi = onCreateNode.bind(null, @)
   $tree.tree(treeArgs)

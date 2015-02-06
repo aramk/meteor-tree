@@ -81,43 +81,52 @@ ul.jqtree-tree {
 }
 
 .jqtree-select-row {
-  display: none;
   position: absolute;
   height: 1.35rem;
   width: 10000px;
-  background: @color-highlight-light;
+  background: none;
   top: 0;
   left: -5000px;
-  &:hover {
-    background: @color-highlight;
-  }
+  z-index: 0;
 }
 
 ul.jqtree-tree {
+  .jqtree-element {
+    > * {
+      position: relative;
+      z-index: 1;
+    }
+    .jqtree-select-row {
+      position: absolute;
+      z-index: 0;
+    }
+  }
   li.jqtree-selected {
     .jqtree-element, .jqtree-element:hover {
       background: none;
     }
-    > .jqtree-element {
-      > * {
-        position: relative;
-        z-index: 1;
-      }
-      .jqtree-select-row {
-        position: absolute;
-        display: block;
-        z-index: 0;
-      }
-    }
     .jqtree-toggler {
       color: @color-tree-toggler-selected;
     }
+    > .jqtree-element .jqtree-select-row {
+      background: @color-highlight-light;
+    }
+  }
+  li.jqtree_common {
+    padding-left: 1.5rem;
   }
   li.jqtree-folder {
     margin-bottom: 0;
+    padding-left: 0;
   }
   .jqtree-toggler {
     color: @color-tree-toggler;
+  }
+  li.jqtree_common > .jqtree-element:hover .jqtree-select-row {
+    background: @color-highlight-lighter;
+  }
+  li.jqtree-selected > .jqtree-element:hover .jqtree-select-row {
+    background: @color-highlight;
   }
 }
 
