@@ -15,10 +15,15 @@
   user-select: none;
 }
 
-.tree-toolbar {
+.tree {
+  margin: 0.5rem 0;
+}
 
+.ui.menu.tree-toolbar {
+  margin: 0;
   > .menu {
     display: inline-block;
+
     &.item {
       padding: 0;
     }
@@ -34,11 +39,9 @@
     margin-bottom: -0.85em;
     margin-right: -0.25em;
   }
-
   .ui.menu.toolbar {
     margin: 0;
   }
-
   .on-selection-show {
     padding: 0 !important;
     display: inline-block;
@@ -46,7 +49,6 @@
       float: left;
     }
   }
-
   &.no-crud-menu {
     .crud.menu {
       display: none;
@@ -54,28 +56,6 @@
     .right.menu {
       float: none;
       width: 100%;
-    }
-  }
-
-}
-
-ul.jqtree-tree {
-  .jqtree-element {
-    .checkbox {
-      margin-right: 0.5rem;
-    }
-  }
-  ul.jqtree_common {
-    margin: 0;
-    padding-left: 1.5rem;
-    ul.jqtree_common {
-      padding-left: 1.5rem;
-      li.jqtree_common {
-        padding-left: 1.5rem;
-        &.jqtree-folder {
-          padding-left: none;
-        }
-      }
     }
   }
 }
@@ -91,6 +71,10 @@ ul.jqtree-tree {
 }
 
 ul.jqtree-tree {
+  margin: 0;
+  z-index: 0;
+  // This hides the selection-row.
+  overflow: hidden;
   .jqtree-element {
     > * {
       position: relative;
@@ -99,6 +83,9 @@ ul.jqtree-tree {
     .jqtree-select-row {
       position: absolute;
       z-index: 0;
+    }
+    .checkbox {
+      margin-right: 0.5rem;
     }
   }
   li.jqtree-selected {
@@ -111,6 +98,22 @@ ul.jqtree-tree {
     > .jqtree-element .jqtree-select-row {
       background: @color-highlight-light;
     }
+  }
+  ul.jqtree_common {
+    margin: 0;
+    padding-left: 1.5rem;
+    ul.jqtree_common {
+      padding-left: 1.5rem;
+      li.jqtree_common {
+        padding-left: 1.5rem;
+        &.jqtree-folder {
+          padding-left: none;
+        }
+      }
+    }
+  }
+  ul.jqtree_common, .jqtree-title {
+    margin: 0;
   }
   li.jqtree_common {
     padding-left: 1.5rem;
@@ -128,14 +131,6 @@ ul.jqtree-tree {
   li.jqtree-selected > .jqtree-element:hover .jqtree-select-row {
     background: @color-highlight;
   }
-}
-
-.jqtree-tree {
-  ul.jqtree_common, .jqtree-title {
-    margin: 0;
-  }
-  // This hides the selection-row.
-  overflow: hidden;
 }
 
 .jqtree_common {

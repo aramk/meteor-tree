@@ -9,12 +9,11 @@ TemplateClass.created = ->
   settings = getSettings()
   
   items = data.items
-  cursor = Collections.getCursor(items)
-  @collection = data.collection ? Collections.get(items)
+  @collection = Collections.get(data.collection ? items)
   unless @collection
-    throw new Error()
+    throw new Error('No collection provided')
   unless items
-    items = collection
+    items = @collection
   @items = items
 
   @model = data.model ? new TreeModel(collection: @collection)
@@ -26,7 +25,6 @@ TemplateClass.rendered = ->
   data = @data
   items = data.items
   cursor = Collections.getCursor(items)
-  collection = Collections.get(items)
   settings = getSettings()
 
   $tree = @$tree = @$('.tree')
@@ -41,6 +39,8 @@ TemplateClass.rendered = ->
     treeArgs.onCreateLi = onCreateNode.bind(null, @)
   $tree.tree(treeArgs)
 
+  # Only a reactive cursor can observe for changes. A simple array can only render a tree once.
+  return unless cursor
   @autorun ->
 
     Collections.observe cursor,
@@ -141,14 +141,14 @@ class SelectionModel
         if newSelectedIds.length > 1
           newSelectedIds = toSelectIds = [ids[0]]
       @selectedIds.set(newSelectedIds)
-    {selectedIds: toSelectIds, newSelectedIds: newSelectedIds}
+    {selectedIds: toSelectIds}
 
   removeSelection: (ids) ->
     selectedIds = @getSelectedIds()
     toDeselectIds = _.intersection(selectedIds, ids)
     newSelectedIds = _.difference(selectedIds, toDeselectIds)
     @selectedIds.set(newSelectedIds)
-    {deselectedIds: toDeselectIds, newSelectedIds: newSelectedIds}
+    {deselectedIds: toDeselectIds}
 
 setSelectedIds = (domNode, ids) ->
   return unless isSelectable(domNode)
@@ -200,17 +200,18 @@ _deselectNode = (domNode, id) ->
 
 isNodeSelected = (domNode, id) ->
   $tree = getTreeElement(domNode)
-  $tree.tree('isNodeSelected', getNode($tree, id))
+  !!$tree.tree('isNodeSelected', getNode($tree, id))
 
 handleSelectionEvent = (e, template) ->
   $tree = template.$tree
   multiSelect = template.selection.multiSelect
   selectedNode = e.node
-  deselectedNode = e.deselected_node ? e.previous_node
-  if selectedNode
-    selectNode($tree, selectedNode.id)
-  if deselectedNode
-    deselectNode($tree, deselectedNode.id)
+  return unless selectedNode
+  selectedId = selectedNode.id
+  if multiSelect
+    selectNode($tree, selectedId)
+  else
+    setSelectedIds($tree, selectedId)
 
 handleClickEvent = (e, template) ->
   return unless isSelectable(template)
@@ -219,7 +220,7 @@ handleClickEvent = (e, template) ->
   selectedNode = e.node
   deselectedNode = e.deselected_node ? e.previous_node
   selectedId = selectedNode.id
-  if multiSelect
+  if multiSelect && e.click_event.metaKey
     # Disable single selection.
     e.preventDefault()
     if isNodeSelected($tree, selectedId)
@@ -244,10 +245,10 @@ onCreateNode = (template, node, $em) ->
     checkboxes.push($checkbox)
     $checkbox.on 'click', (e) -> e.stopPropagation()
     $checkbox.on 'change', ->
-      checkEvent = {}
+      checkArgs = {}
       isChecked = $checkbox.is(':checked')
-      checkEvent[if isChecked then 'checked' else 'unchecked'] = [node.id]
-      $tree.trigger(checkEventName, checkEvent)
+      checkArgs[if isChecked then 'checked' else 'unchecked'] = [node.id]
+      $tree.trigger(checkEventName, checkArgs)
   $selectRow = $('<div class="jqtree-select-row"></div>')
   $('.jqtree-element', $em).append($selectRow)
 

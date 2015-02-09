@@ -12,7 +12,7 @@ TemplateClass.rendered = ->
   treeTemplate = Template.tree.getTemplate(@$tree)
   @collection = treeTemplate.collection
 
-  collectionName = data.collectionName ? Collections.getName(collection)
+  collectionName = data.collectionName ? Collections.getName(@collection)
   if collectionName
     collectionId = Strings.firstToLowerCase(Strings.singular(collectionName))
     @createRoute = data.createRoute ? collectionId + 'Create'
@@ -49,7 +49,7 @@ editItem = (template, args) ->
   defaultHandler = ->
     ids = args.ids ? Template.tree.getSelectedIds(template.$tree)
     id = ids[0]
-    typeof Router != 'undefined' && Router.go(editRoute, {
+    typeof Router != 'undefined' && Router.go(template.editRoute, {
       _id: id
     })
   if settings.onEdit
@@ -66,7 +66,7 @@ deleteItem = (template) ->
       settings.onDelete(createHandlerContext(template))
     else
       _.each Template.tree.getSelectedIds(template.$tree), (id) ->
-        collection.remove(id)
+        template.collection.remove(id)
 
 ####################################################################################################
 # AUXILIARY
