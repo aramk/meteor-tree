@@ -264,8 +264,8 @@ getCheckedIds = (domNode) -> getTemplate(domNode).check.getCheckedIds()
 
 uncheckAll = (domNode) ->
   return unless isCheckable(domNode)
-  checkedIds = getTemplate(domNode).check.deselectAll()
-  handleCheckResult(domNode, {selectedIds: checkedIds, deselectedIds: []})
+  selectedIds = getTemplate(domNode).check.deselectAll()
+  handleCheckResult(domNode, {selectedIds: selectedIds, deselectedIds: []})
 
 toggleChecked = (domNode, ids) ->
   return unless isCheckable(domNode)
@@ -284,8 +284,8 @@ removeChecked = (domNode, ids) ->
 
 handleCheckResult = (domNode, result) ->
   $tree = getTreeElement(domNode)
-  result.checkedIds = result.selectedIds
-  result.uncheckedIds = result.deselectedIds
+  result.checkedIds ?= result.selectedIds
+  result.uncheckedIds ?= result.deselectedIds
   delete result.selectedIds
   delete result.deselectedIds
   _.each result.checkedIds, (id) -> _checkNode($tree, id)
