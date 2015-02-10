@@ -18,6 +18,7 @@ TemplateClass.created = ->
 
   @model = data.model ? new TreeModel(collection: @collection)
   @selection = new SelectionModel(settings)
+  @check = new SelectionModel(_.extend({}, settings, {multiSelect: true}))
   # Allow modifying the underlying logic of the tree model.
   _.extend(@model, data.settings)
 
@@ -141,14 +142,14 @@ class SelectionModel
         if newSelectedIds.length > 1
           newSelectedIds = toSelectIds = [ids[0]]
       @selectedIds.set(newSelectedIds)
-    {selectedIds: toSelectIds}
+    {selectedIds: toSelectIds, deselectedIds: []}
 
   removeSelection: (ids) ->
     selectedIds = @getSelectedIds()
     toDeselectIds = _.intersection(selectedIds, ids)
     newSelectedIds = _.difference(selectedIds, toDeselectIds)
     @selectedIds.set(newSelectedIds)
-    {deselectedIds: toDeselectIds}
+    {selectedIds: [], deselectedIds: toDeselectIds}
 
 setSelectedIds = (domNode, ids) ->
   return unless isSelectable(domNode)
@@ -160,7 +161,7 @@ getSelectedIds = (domNode) -> getTemplate(domNode).selection.getSelectedIds()
 deselectAll = (domNode) ->
   return unless isSelectable(domNode)
   selectedIds = getTemplate(domNode).selection.deselectAll()
-  handleSelectionResult(domNode, {selectedIds: selectedIds})
+  handleSelectionResult(domNode, {selectedIds: selectedIds, deselectedIds: []})
 
 toggleSelection = (domNode, ids) ->
   return unless isSelectable(domNode)
@@ -169,13 +170,11 @@ toggleSelection = (domNode, ids) ->
 
 addSelection = (domNode, ids) ->
   return unless isSelectable(domNode)
-  $tree = getTreeElement(domNode)
   result = getTemplate(domNode).selection.addSelection(ids)
   handleSelectionResult(domNode, result)
 
 removeSelection = (domNode, ids) ->
   return unless isSelectable(domNode)
-  $tree = getTreeElement(domNode)
   result = getTemplate(domNode).selection.removeSelection(ids)
   handleSelectionResult(domNode, result)
 
@@ -230,6 +229,8 @@ handleClickEvent = (e, template) ->
 
 isSelectable = (template) -> getSettings(template).selectable
 
+isCheckable = (template) -> getSettings(template).checkboxes
+
 ####################################################################################################
 # CHECKBOXES
 ####################################################################################################
@@ -245,12 +246,66 @@ onCreateNode = (template, node, $em) ->
     checkboxes.push($checkbox)
     $checkbox.on 'click', (e) -> e.stopPropagation()
     $checkbox.on 'change', ->
-      checkArgs = {}
       isChecked = $checkbox.is(':checked')
-      checkArgs[if isChecked then 'checked' else 'unchecked'] = [node.id]
-      $tree.trigger(checkEventName, checkArgs)
+      id = node.id
+      if isChecked
+        checkNode($tree, id)
+      else
+        uncheckNode($tree, id)
   $selectRow = $('<div class="jqtree-select-row"></div>')
   $('.jqtree-element', $em).append($selectRow)
+
+setCheckedIds = (domNode, ids) ->
+  return unless isCheckable(domNode)
+  result = getTemplate(domNode).check.setSelectedIds(ids)
+  handleCheckResult(domNode, result)
+
+getCheckedIds = (domNode) -> getTemplate(domNode).check.getCheckedIds()
+
+uncheckAll = (domNode) ->
+  return unless isCheckable(domNode)
+  checkedIds = getTemplate(domNode).check.deselectAll()
+  handleCheckResult(domNode, {selectedIds: checkedIds, deselectedIds: []})
+
+toggleChecked = (domNode, ids) ->
+  return unless isCheckable(domNode)
+  result = getTemplate(domNode).check.toggleSelection(ids)
+  handleCheckResult(domNode, result)
+
+addChecked = (domNode, ids) ->
+  return unless isCheckable(domNode)
+  result = getTemplate(domNode).check.addSelection(ids)
+  handleCheckResult(domNode, result)
+
+removeChecked = (domNode, ids) ->
+  return unless isCheckable(domNode)
+  result = getTemplate(domNode).check.removeSelection(ids)
+  handleCheckResult(domNode, result)
+
+handleCheckResult = (domNode, result) ->
+  $tree = getTreeElement(domNode)
+  result.checkedIds = result.selectedIds
+  result.uncheckedIds = result.deselectedIds
+  delete result.selectedIds
+  delete result.deselectedIds
+  _.each result.checkedIds, (id) -> _checkNode($tree, id)
+  _.each result.uncheckedIds, (id) -> _uncheckNode($tree, id)
+  $tree.trigger(checkEventName, result)
+
+checkNode = (domNode, id) -> addChecked(domNode, [id])
+
+uncheckNode = (domNode, id) -> removeChecked(domNode, [id])
+
+_getCheckbox = (domNode, id) ->
+  $tree = getTreeElement(domNode)
+  node = getNode($tree, id)
+  $('> .jqtree-element > .checkbox', node.element)
+
+_checkNode = (domNode, id) -> _getCheckbox(domNode, id).prop('checked', true)
+
+_uncheckNode = (domNode, id) -> _getCheckbox(domNode, id).prop('checked', false)
+
+isNodeChecked = (domNode, id) -> _getCheckbox(domNode, id).prop('checked')
 
 ####################################################################################################
 # AUXILIARY
@@ -324,8 +379,8 @@ getSortedIndex = ($tree, doc) ->
     nextSiblingDoc = siblings[sortedIndex + 1]
     nextSiblingNode = getNode($tree, nextSiblingDoc._id)
     # $tree.tree('addNodeBefore', data, nextSiblingNode)
-  # else
     # $tree.tree('appendNode', data, parentNode)
+  # else
   result =
     siblings: siblings
     maxIndex: maxIndex
@@ -390,8 +445,10 @@ _.extend(TemplateClass, {
   getDomNode: getDomNode
   getTemplate: getTemplate
   getSettings: getSettings
+  
   expandNode: expandNode
   collapseNode: collapseNode
+  
   selectNode: selectNode
   deselectNode: deselectNode
   setSelectedIds: setSelectedIds
@@ -399,5 +456,16 @@ _.extend(TemplateClass, {
   deselectAll: deselectAll
   addSelection: addSelection
   removeSelection: removeSelection
-  isNodeSelected: isNodeSelected
+  isNodeSelected: isNodeSelected,
+
+  checkNode: checkNode
+  uncheckNode: uncheckNode
+  setCheckedIds: setCheckedIds
+  getCheckedIds: getCheckedIds
+  uncheckAll: uncheckAll
+  toggleChecked: toggleChecked
+  addChecked: addChecked
+  removeChecked: removeChecked
+  handleCheckResult: handleCheckResult
+  isNodeChecked: isNodeChecked
 })
