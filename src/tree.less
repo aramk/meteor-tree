@@ -92,11 +92,13 @@ ul.jqtree-tree {
     .jqtree-element, .jqtree-element:hover {
       background: none;
     }
-    .jqtree-toggler {
-      color: @color-tree-toggler-selected;
-    }
-    > .jqtree-element .jqtree-select-row {
-      background: @color-highlight-light;
+    > .jqtree-element {
+      .jqtree-toggler {
+        color: @color-tree-toggler-selected;
+      }
+      .jqtree-select-row {
+        background: @color-highlight-light;
+      }
     }
   }
   ul.jqtree_common {
@@ -107,7 +109,7 @@ ul.jqtree-tree {
       li.jqtree_common {
         padding-left: 1.5rem;
         &.jqtree-folder {
-          padding-left: none;
+          padding-left: 0;
         }
       }
     }
@@ -130,6 +132,9 @@ ul.jqtree-tree {
   }
   li.jqtree-selected > .jqtree-element:hover .jqtree-select-row {
     background: @color-highlight;
+  }
+  > li.jqtree_common {
+    margin-left: 0.5rem;
   }
 }
 

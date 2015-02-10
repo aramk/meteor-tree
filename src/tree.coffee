@@ -75,6 +75,9 @@ TemplateClass.rendered = ->
       removed: (oldDoc) ->
         id = oldDoc._id
         node = getNode($tree, id)
+        # If the parent node is removed before the child, it will no longer exist and doesn't need
+        # to be removed.
+        return unless node
         removeSelection($tree, [id])
         $tree.tree('removeNode', node)
 
