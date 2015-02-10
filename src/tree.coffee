@@ -172,19 +172,18 @@ addSelection = (domNode, ids) ->
   $tree = getTreeElement(domNode)
   result = getTemplate(domNode).selection.addSelection(ids)
   handleSelectionResult(domNode, result)
-  $tree.trigger(selectEventName, result)
 
 removeSelection = (domNode, ids) ->
   return unless isSelectable(domNode)
   $tree = getTreeElement(domNode)
   result = getTemplate(domNode).selection.removeSelection(ids)
   handleSelectionResult(domNode, result)
-  $tree.trigger(selectEventName, result)
 
 handleSelectionResult = (domNode, result) ->
   $tree = getTreeElement(domNode)
   _.each result.selectedIds, (id) -> _selectNode($tree, id)
   _.each result.deselectedIds, (id) -> _deselectNode($tree, id)
+  $tree.trigger(selectEventName, result)
 
 selectNode = (domNode, id) -> addSelection(domNode, [id])
 
@@ -211,22 +210,23 @@ handleSelectionEvent = (e, template) ->
   if multiSelect
     selectNode($tree, selectedId)
   else
-    setSelectedIds($tree, selectedId)
+    setSelectedIds($tree, [selectedId])
 
 handleClickEvent = (e, template) ->
   return unless isSelectable(template)
   $tree = template.$tree
   multiSelect = template.selection.multiSelect
   selectedNode = e.node
-  deselectedNode = e.deselected_node ? e.previous_node
   selectedId = selectedNode.id
+  # Disable single selection behaviour from taking effect.
+  e.preventDefault()
   if multiSelect && e.click_event.metaKey
-    # Disable single selection.
-    e.preventDefault()
     if isNodeSelected($tree, selectedId)
       deselectNode($tree, selectedId)
     else
       selectNode($tree, selectedId)
+  else
+    setSelectedIds($tree, [selectedId])
 
 isSelectable = (template) -> getSettings(template).selectable
 
