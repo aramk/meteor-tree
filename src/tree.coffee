@@ -2,7 +2,6 @@ templateName = 'tree'
 TemplateClass = Template[templateName]
 selectEventName = 'select'
 checkEventName = 'check'
-hasSemanticUi = Package['nooitaf:semantic-ui']
 
 TemplateClass.created = ->
   data = @data
@@ -17,8 +16,8 @@ TemplateClass.created = ->
   @items = items
 
   @model = data.model ? new TreeModel(collection: @collection)
-  @selection = new SelectionModel(settings)
-  @check = new SelectionModel(_.extend({}, settings, {multiSelect: true}))
+  @selection = new IdSet({exclusive: !settings.multiSelect})
+  @check = new IdSet({exclusive: false})
   # Allow modifying the underlying logic of the tree model.
   _.extend(@model, data.settings)
 
@@ -112,92 +111,37 @@ collapseNode = ($tree, id) -> $tree.tree('closeNode', getNode($tree, id))
 # SELECTION
 ####################################################################################################
 
-# A generic class for representing the selection of items.
-class SelectionModel
-
-  constructor: (args) ->
-    args = _.extend({
-      multiSelect: true
-    }, args)
-    @selectedIds = new ReactiveVar([])
-    @selectedIdsMap = {}
-    @multiSelect = args.multiSelect
-
-  setSelectedIds: (ids) ->
-    selectedIds = @getSelectedIds()
-    toDeselectIds = _.difference(selectedIds, ids)
-    toSelectIds = _.difference(ids, selectedIds)
-    @removeSelection(toDeselectIds)
-    @addSelection(toSelectIds)
-    {deselectedIds: toDeselectIds, selectedIds: toSelectIds}
-
-  getSelectedIds: -> @selectedIds.get()
-
-  deselectAll: ->
-    selectedIds = @getSelectedIds()
-    @removeSelection(selectedIds)
-    selectedIds
-
-  toggleSelection: (ids) ->
-    selectedIds = @getSelectedIds()
-    toDeselectIds = _.intersection(selectedIds, ids)
-    toSelectIds = _.difference(ids, selectedIds)
-    _.extend(@removeSelection(toDeselectIds), @addSelection(toSelectIds))
-
-  addSelection: (ids) ->
-    selectedIds = @getSelectedIds()
-    toSelectIds = _.difference(ids, selectedIds)
-    newSelectedIds = _.union(selectedIds, toSelectIds)
-    if toSelectIds.length > 0
-      if @multiSelect == false
-        @deselectAll()
-        if newSelectedIds.length > 1
-          newSelectedIds = toSelectIds = [ids[0]]
-      @selectedIds.set(newSelectedIds)
-    _.each toSelectIds, (id) => @selectedIdsMap[id] = true
-    {selectedIds: toSelectIds, deselectedIds: []}
-
-  removeSelection: (ids) ->
-    selectedIds = @getSelectedIds()
-    toDeselectIds = _.intersection(selectedIds, ids)
-    newSelectedIds = _.difference(selectedIds, toDeselectIds)
-    @selectedIds.set(newSelectedIds)
-    _.each toDeselectIds, (id) => delete @selectedIdsMap[id]
-    {selectedIds: [], deselectedIds: toDeselectIds}
-
-  isSelected: (id) -> !!@selectedIdsMap[id]
-
 setSelectedIds = (domNode, ids) ->
   return unless isSelectable(domNode)
-  result = getTemplate(domNode).selection.setSelectedIds(ids)
+  result = getTemplate(domNode).selection.setIds(ids)
   handleSelectionResult(domNode, result)
 
-getSelectedIds = (domNode) -> getTemplate(domNode).selection.getSelectedIds()
+getSelectedIds = (domNode) -> getTemplate(domNode).selection.getIds()
 
 deselectAll = (domNode) ->
   return unless isSelectable(domNode)
-  selectedIds = getTemplate(domNode).selection.deselectAll()
-  handleSelectionResult(domNode, {selectedIds: selectedIds, deselectedIds: []})
+  selectedIds = getTemplate(domNode).selection.removeAll()
+  handleSelectionResult(domNode, {added: selectedIds, removed: []})
 
 toggleSelection = (domNode, ids) ->
   return unless isSelectable(domNode)
-  result = getTemplate(domNode).selection.toggleSelection(ids)
+  result = getTemplate(domNode).selection.toggle(ids)
   handleSelectionResult(domNode, result)
 
 addSelection = (domNode, ids) ->
   return unless isSelectable(domNode)
-  result = getTemplate(domNode).selection.addSelection(ids)
+  result = getTemplate(domNode).selection.add(ids)
   handleSelectionResult(domNode, result)
 
 removeSelection = (domNode, ids) ->
   return unless isSelectable(domNode)
-  result = getTemplate(domNode).selection.removeSelection(ids)
+  result = getTemplate(domNode).selection.remove(ids)
   handleSelectionResult(domNode, result)
 
 handleSelectionResult = (domNode, result) ->
   $tree = getTreeElement(domNode)
-  _.each result.selectedIds, (id) -> _selectNode($tree, id)
-  _.each result.deselectedIds, (id) -> _deselectNode($tree, id)
+  _.each result.added, (id) -> _selectNode($tree, id)
+  _.each result.removed, (id) -> _deselectNode($tree, id)
   $tree.trigger(selectEventName, result)
 
 selectNode = (domNode, id) -> addSelection(domNode, [id])
@@ -218,7 +162,7 @@ isNodeSelected = (domNode, id) ->
 
 handleSelectionEvent = (e, template) ->
   $tree = template.$tree
-  multiSelect = template.selection.multiSelect
+  multiSelect = !template.selection.exclusive
   selectedNode = e.node
   return unless selectedNode
   selectedId = selectedNode.id
@@ -230,7 +174,7 @@ handleSelectionEvent = (e, template) ->
 handleClickEvent = (e, template) ->
   return unless isSelectable(template)
   $tree = template.$tree
-  multiSelect = template.selection.multiSelect
+  multiSelect = !template.selection.exclusive
   selectedNode = e.node
   selectedId = selectedNode.id
   # Disable single selection behaviour from taking effect.
@@ -261,7 +205,7 @@ onCreateNode = (template, node, $em) ->
     $title.before($checkbox)
     # TODO(aramk) Remove this reference and call off() on node removal.
     checkboxes.push($checkbox)
-    $checkbox.prop('checked', template.check.isSelected(node.id))
+    $checkbox.prop('checked', template.check.contains(node.id))
     $checkbox.on 'click', (e) -> e.stopPropagation()
     $checkbox.on 'change', ->
       isChecked = $checkbox.is(':checked')
@@ -275,39 +219,35 @@ onCreateNode = (template, node, $em) ->
 
 setCheckedIds = (domNode, ids) ->
   return unless isCheckable(domNode)
-  result = getTemplate(domNode).check.setSelectedIds(ids)
+  result = getTemplate(domNode).check.setIds(ids)
   handleCheckResult(domNode, result)
 
-getCheckedIds = (domNode) -> getTemplate(domNode).check.getCheckedIds()
+getCheckedIds = (domNode) -> getTemplate(domNode).check.getIds()
 
 uncheckAll = (domNode) ->
   return unless isCheckable(domNode)
-  selectedIds = getTemplate(domNode).check.deselectAll()
-  handleCheckResult(domNode, {selectedIds: selectedIds, deselectedIds: []})
+  selectedIds = getTemplate(domNode).check.removeAll()
+  handleCheckResult(domNode, {added: selectedIds, removed: []})
 
 toggleChecked = (domNode, ids) ->
   return unless isCheckable(domNode)
-  result = getTemplate(domNode).check.toggleSelection(ids)
+  result = getTemplate(domNode).check.toggle(ids)
   handleCheckResult(domNode, result)
 
 addChecked = (domNode, ids) ->
   return unless isCheckable(domNode)
-  result = getTemplate(domNode).check.addSelection(ids)
+  result = getTemplate(domNode).check.add(ids)
   handleCheckResult(domNode, result)
 
 removeChecked = (domNode, ids) ->
   return unless isCheckable(domNode)
-  result = getTemplate(domNode).check.removeSelection(ids)
+  result = getTemplate(domNode).check.remove(ids)
   handleCheckResult(domNode, result)
 
 handleCheckResult = (domNode, result) ->
   $tree = getTreeElement(domNode)
-  result.checkedIds ?= result.selectedIds
-  result.uncheckedIds ?= result.deselectedIds
-  delete result.selectedIds
-  delete result.deselectedIds
-  _.each result.checkedIds, (id) -> _checkNode($tree, id)
-  _.each result.uncheckedIds, (id) -> _uncheckNode($tree, id)
+  _.each result.added, (id) -> _checkNode($tree, id)
+  _.each result.removed, (id) -> _uncheckNode($tree, id)
   $tree.trigger(checkEventName, result)
 
 checkNode = (domNode, id) -> addChecked(domNode, [id])
@@ -451,6 +391,61 @@ class TreeModel
 
   compareDocs: (docA, docB) ->
     if docA.name < docB.name then -1 else 1
+
+
+class IdSet
+
+  constructor: (args) ->
+    args = _.extend({
+      exclusive: false
+    }, args)
+    @ids = new ReactiveVar([])
+    @idsMap = {}
+    @exclusive = args.exclusive
+
+  setIds: (ids) ->
+    existingIds = @getIds()
+    toRemove = _.difference(existingIds, ids)
+    toAdd = _.difference(ids, existingIds)
+    @remove(toRemove)
+    @add(toAdd)
+    {added: toAdd, removed: toRemove}
+
+  getIds: -> @ids.get()
+
+  add: (ids) ->
+    existingIds = @getIds()
+    toAdd = _.difference(ids, existingIds)
+    newIds = _.union(existingIds, toAdd)
+    if toAdd.length > 0
+      if @exclusive
+        @removeAll()
+        if newIds.length > 1
+          newIds = toAdd = [ids[0]]
+      @ids.set(newIds)
+    _.each toAdd, (id) => @idsMap[id] = true
+    {added: toAdd, removed: []}
+
+  remove: (ids) ->
+    existingIds = @getIds()
+    toRemove = _.intersection(existingIds, ids)
+    newIds = _.difference(existingIds, toRemove)
+    @ids.set(newIds)
+    _.each toRemove, (id) => delete @idsMap[id]
+    {added: [], removed: toRemove}
+
+  removeAll: ->
+    toRemove = @getIds()
+    @remove(toRemove)
+    toRemove
+
+  toggle: (ids) ->
+    existingIds = @getIds()
+    toRemove = _.intersection(existingIds, ids)
+    toAdd = _.difference(ids, existingIds)
+    _.extend(@remove(toRemove), @add(toAdd))
+
+  contains: (id) -> !!@idsMap[id]
 
 ####################################################################################################
 # API
