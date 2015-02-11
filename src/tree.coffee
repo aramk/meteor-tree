@@ -207,13 +207,18 @@ onCreateNode = (template, node, $em) ->
     checkboxes.push($checkbox)
     $checkbox.prop('checked', template.check.contains(node.id))
     $checkbox.on 'click', (e) -> e.stopPropagation()
-    $checkbox.on 'change', ->
+    $checkbox.on 'change', (e) ->
       isChecked = $checkbox.is(':checked')
       id = node.id
       if isChecked
         checkNode($tree, id)
       else
         uncheckNode($tree, id)
+      if settings.recursiveCheck
+        _.each getNode($tree, id).children, (childNode) ->
+          # Check all children and trigger a change event so it's recursive.
+          getCheckbox($tree, childNode.id).prop('checked', isChecked).trigger('change')
+
   $selectRow = $('<div class="jqtree-select-row"></div>')
   $('.jqtree-element', $em).append($selectRow)
 
@@ -254,16 +259,16 @@ checkNode = (domNode, id) -> addChecked(domNode, [id])
 
 uncheckNode = (domNode, id) -> removeChecked(domNode, [id])
 
-_getCheckbox = (domNode, id) ->
+getCheckbox = (domNode, id) ->
   $tree = getTreeElement(domNode)
   node = getNode($tree, id)
   $('> .jqtree-element > .checkbox', node.element)
 
-_checkNode = (domNode, id) -> _getCheckbox(domNode, id).prop('checked', true)
+_checkNode = (domNode, id) -> getCheckbox(domNode, id).prop('checked', true)
 
-_uncheckNode = (domNode, id) -> _getCheckbox(domNode, id).prop('checked', false)
+_uncheckNode = (domNode, id) -> getCheckbox(domNode, id).prop('checked', false)
 
-isNodeChecked = (domNode, id) -> _getCheckbox(domNode, id).prop('checked')
+isNodeChecked = (domNode, id) -> getCheckbox(domNode, id).prop('checked')
 
 ####################################################################################################
 # AUXILIARY
@@ -301,6 +306,7 @@ getSettings = (arg) ->
       multiSelect: false
       selectable: true
       checkboxes: false
+      recursiveCheck: true
     }, template.data.settings)
   template.settings
 
