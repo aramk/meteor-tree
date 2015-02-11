@@ -46,6 +46,7 @@ TemplateClass.rendered = ->
 
     Collections.observe cursor,
       added: (newDoc) ->
+        id = newDoc._id
         data = model.docToNodeData(newDoc, {children: false})
         sortResults = getSortedIndex($tree, newDoc)
         nextSiblingNode = sortResults.nextSiblingNode
@@ -53,6 +54,13 @@ TemplateClass.rendered = ->
           $tree.tree('addNodeBefore', data, nextSiblingNode)
         else
           $tree.tree('appendNode', data, sortResults.parentNode)
+        if getSettings($tree).autoExpand
+          expandNode($tree, id)
+        parentNode = getNode($tree, id).parent
+        parentId = parentNode.id
+        # Root node doesn't have an ID and cannot be expanded.
+        if parentId
+          expandNode($tree, parentId)
 
       changed: (newDoc, oldDoc) ->
         node = getNode($tree, newDoc._id)
@@ -112,6 +120,7 @@ class SelectionModel
       multiSelect: true
     }, args)
     @selectedIds = new ReactiveVar([])
+    @selectedIdsMap = {}
     @multiSelect = args.multiSelect
 
   setSelectedIds: (ids) ->
@@ -145,6 +154,7 @@ class SelectionModel
         if newSelectedIds.length > 1
           newSelectedIds = toSelectIds = [ids[0]]
       @selectedIds.set(newSelectedIds)
+    _.each toSelectIds, (id) => @selectedIdsMap[id] = true
     {selectedIds: toSelectIds, deselectedIds: []}
 
   removeSelection: (ids) ->
@@ -152,7 +162,10 @@ class SelectionModel
     toDeselectIds = _.intersection(selectedIds, ids)
     newSelectedIds = _.difference(selectedIds, toDeselectIds)
     @selectedIds.set(newSelectedIds)
+    _.each toDeselectIds, (id) => delete @selectedIdsMap[id]
     {selectedIds: [], deselectedIds: toDeselectIds}
+
+  isSelected: (id) -> !!@selectedIdsMap[id]
 
 setSelectedIds = (domNode, ids) ->
   return unless isSelectable(domNode)
@@ -246,7 +259,9 @@ onCreateNode = (template, node, $em) ->
     $title = $('.jqtree-title', $em)
     $checkbox = $('<input class="checkbox" type="checkbox" />')
     $title.before($checkbox)
+    # TODO(aramk) Remove this reference and call off() on node removal.
     checkboxes.push($checkbox)
+    $checkbox.prop('checked', template.check.isSelected(node.id))
     $checkbox.on 'click', (e) -> e.stopPropagation()
     $checkbox.on 'change', ->
       isChecked = $checkbox.is(':checked')
@@ -357,19 +372,16 @@ getNode = ($tree, id) -> $tree.tree('getNodeById', id)
 
 getRootNode = ($tree) -> $tree.tree('getTree')
 
-getParentNode = ($tree, parent) ->
-  if parent
-    getNode($tree, parent)
-  else
-    getRootNode($tree)
-
 getSortedIndex = ($tree, doc) ->
   template = getTemplate($tree)
   $tree = template.$tree
   model = template.model
   collection = template.collection
   parent = model.getParent(doc)
-  parentNode = getParentNode($tree, parent)
+  if parent
+    parentNode = getNode($tree, parent)
+  else
+    parentNode = getRootNode($tree)
   # This array will include the doc itself.
   siblings = model.getChildren(collection.findOne(parent))
   siblings.sort(model.compareDocs)
