@@ -23,21 +23,12 @@ TemplateClass.created = ->
 
 TemplateClass.rendered = ->
   data = @data
+  model = @model
   items = data.items
   cursor = Collections.getCursor(items)
   settings = getSettings()
-
   $tree = @$tree = @$('.tree')
-  model = @model
-  docs = Collections.getItems(items)
-  treeData = model.docsToNodeData(docs)
-  treeArgs =
-    data: treeData
-    autoOpen: settings.autoExpand
-    selectable: settings.selectable
-  if settings.checkboxes
-    treeArgs.onCreateLi = onCreateNode.bind(null, @)
-  $tree.tree(treeArgs)
+  loadTree(@)
 
   # Only a reactive cursor can observe for changes. A simple array can only render a tree once.
   return unless cursor
@@ -47,18 +38,26 @@ TemplateClass.rendered = ->
       added: (newDoc) ->
         id = newDoc._id
         data = model.docToNodeData(newDoc, {children: false})
+        docParentId = model.getParent(data)
+        unless docParentId
+          # There is a significant memory leak caused by re-loading the entire tree after each
+          # change (e.g. if a node is added to the root node). Hence, we recreate the entire tree
+          # just once after all updates are complete.
+          refreshTree($tree)
+          return
         sortResults = getSortedIndex($tree, newDoc)
         nextSiblingNode = sortResults.nextSiblingNode
         if nextSiblingNode
           $tree.tree('addNodeBefore', data, nextSiblingNode)
         else
           $tree.tree('appendNode', data, sortResults.parentNode)
-        if getSettings($tree).autoExpand
+        autoExpand = getSettings($tree).autoExpand
+        if autoExpand
           expandNode($tree, id)
         parentNode = getNode($tree, id).parent
         parentId = parentNode.id
         # Root node doesn't have an ID and cannot be expanded.
-        if parentId
+        if autoExpand && parentId
           expandNode($tree, parentId)
 
       changed: (newDoc, oldDoc) ->
@@ -98,6 +97,30 @@ TemplateClass.events
   'tree.click .tree': (e, template) -> handleClickEvent(e, template)
   'tree.dblclick .tree': (e, template) ->
     id = e.node.id
+
+####################################################################################################
+# LOADING
+####################################################################################################
+
+loadTree = (domNode) ->
+  template = getTemplate(domNode)
+  $em = $(getDomNode(domNode))
+  getTreeElement(domNode).remove()
+  $tree = createTreeElement()
+  $em.append($tree)
+  model = template.model
+  docs = Collections.getItems(template.items)
+  treeData = model.docsToNodeData(docs)
+  settings = getSettings(domNode)
+  treeArgs =
+    data: treeData
+    autoOpen: settings.autoExpand
+    selectable: settings.selectable
+  if settings.checkboxes
+    treeArgs.onCreateLi = onCreateNode.bind(null, template)
+  $tree.tree(treeArgs)
+
+refreshTree = _.debounce(loadTree, 1000)
 
 ####################################################################################################
 # EXPANSION
@@ -274,7 +297,8 @@ isNodeChecked = (domNode, id) -> getCheckbox(domNode, id).prop('checked')
 # AUXILIARY
 ####################################################################################################
 
-getDomNode = (template) ->
+getDomNode = (arg) ->
+  template = getTemplate(arg)
   unless template then throw new Error('No template provided')
   template.find('.tree')
 
@@ -290,13 +314,11 @@ getTemplate = (arg) ->
   catch err
     throw new Error('No domNode provided')
 
-getTreeElement = (domNode) ->
-  domNode = $(domNode)[0]
-  startTemplate = Blaze.getView(domNode)?.templateInstance()
-  template = Templates.getNamedInstance(templateName, startTemplate)
-  unless template
-    throw new Error('No template could be found.')
-  template.$tree
+getTreeElement = (arg) ->
+  template = getTemplate(arg)
+  template.$('.tree-inner')
+
+createTreeElement = -> $('<div class="tree-inner"></div>')
 
 getSettings = (arg) ->
   template = getTemplate(arg)

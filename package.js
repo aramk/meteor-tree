@@ -31,4 +31,7 @@ Package.onUse(function (api) {
     'src/crudTree.html',
     'src/crudTree.coffee'
   ], 'client');
+  api.export([
+    'TreeModel'
+  ], 'client');
 });

@@ -4,7 +4,9 @@
 @color-highlight-lighter: lighten(@color-highlight, 20%);
 @color-tree-toggler: #999;
 @color-tree-toggler-selected: #009fda;
-@tree-row-height: 1.35rem;
+
+@tree-row-line-height: 1.75rem;
+@tree-row-padding-y: 0.2rem;
 
 .unselectable {
   -webkit-user-select: none; /* Chrome/Safari */
@@ -15,12 +17,7 @@
   user-select: none;
 }
 
-.tree {
-  margin: 0.5rem 0;
-}
-
 .ui.menu.tree-toolbar {
-  margin: 0;
   > .menu {
     display: inline-block;
 
@@ -62,30 +59,31 @@
 
 .jqtree-select-row {
   position: absolute;
-  height: 1.35rem;
+  height: @tree-row-line-height;
   width: 10000px;
   background: none;
+  // top: -@tree-row-padding-y;
   top: 0;
   left: -5000px;
   z-index: 0;
 }
 
 ul.jqtree-tree {
-  margin: 0;
   z-index: 0;
   // This hides the selection-row.
   overflow: hidden;
   .jqtree-element {
     > * {
       position: relative;
-      z-index: 1;
+      z-index: 0;
     }
     .jqtree-select-row {
       position: absolute;
-      z-index: 0;
+      z-index: -1;
     }
     .checkbox {
       margin-right: 0.5rem;
+      vertical-align: middle;
     }
   }
   li.jqtree-selected {
@@ -119,6 +117,13 @@ ul.jqtree-tree {
   }
   li.jqtree_common {
     padding-left: 1.5rem;
+    // padding-top: @tree-row-padding-y;
+    // padding-bottom: @tree-row-padding-y;
+    font-size: 1.1rem;
+    line-height: @tree-row-line-height;
+    & > * {
+      vertical-align: middle;
+    }
   }
   li.jqtree-folder {
     margin-bottom: 0;
@@ -138,7 +143,16 @@ ul.jqtree-tree {
   }
 }
 
+ul.jqtree-tree, .ui.menu.tree-toolbar {
+  margin: 0;
+  margin-bottom: 0.5rem;
+}
+
 .jqtree_common {
   position: relative;
-  line-height: @tree-row-height;
+}
+
+.jqtree-tree .jqtree-title {
+  color: black;
+  line-height: @tree-row-line-height;
 }
