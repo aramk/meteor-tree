@@ -122,23 +122,7 @@ loadTree = (element) ->
   treeArgs.onCreateLi = onCreateNode.bind(null, template)
   $tree.tree(treeArgs)
 
-# TODO(aramk) Put into utility.
-debounceLeft = (func, delay) ->
-  isPressed = true
-  handle = null
-  press = ->
-    isPressed = true
-    setTimeout((-> isPressed = false), delay)
-  wrapped = ->
-    if isPressed
-      press()
-      return
-    result = func.apply(null, arguments)
-    press()
-    result
-  wrapped
-
-refreshTree = debounceLeft(loadTree, 1000)
+refreshTree = Functions.debounceLeft(loadTree, 1000)
 
 ####################################################################################################
 # EXPANSION
