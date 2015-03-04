@@ -19,16 +19,17 @@ TemplateClass.created = ->
   @selection = new IdSet({exclusive: !settings.multiSelect})
   @check = new IdSet({exclusive: false})
   # Allow modifying the underlying logic of the tree model.
-  _.extend(@model, data.settings)
+  _.extend(@model, settings)
 
 TemplateClass.rendered = ->
   data = @data
   model = @model
-  items = data.items
+  items = @items
   cursor = Collections.getCursor(items)
   settings = getSettings()
-  $tree = @$tree = @$('.tree')
+  template = @
   loadTree(@)
+  $tree = getTreeElement(@)
 
   # Only a reactive cursor can observe for changes. A simple array can only render a tree once.
   return unless cursor
@@ -43,35 +44,35 @@ TemplateClass.rendered = ->
           # There is a significant memory leak caused by re-loading the entire tree after each
           # change (e.g. if a node is added to the root node). Hence, we recreate the entire tree
           # just once after all updates are complete.
-          refreshTree($tree)
+          refreshTree(template)
           return
-        sortResults = getSortedIndex($tree, newDoc)
+        sortResults = getSortedIndex(template, newDoc)
         nextSiblingNode = sortResults.nextSiblingNode
         if nextSiblingNode
           $tree.tree('addNodeBefore', data, nextSiblingNode)
         else
           $tree.tree('appendNode', data, sortResults.parentNode)
-        autoExpand = getSettings($tree).autoExpand
+        autoExpand = getSettings(template).autoExpand
         if autoExpand
-          expandNode($tree, id)
-        parentNode = getNode($tree, id).parent
+          expandNode(template, id)
+        parentNode = getNode(template, id).parent
         parentId = parentNode.id
         # Root node doesn't have an ID and cannot be expanded.
         if autoExpand && parentId
-          expandNode($tree, parentId)
+          expandNode(template, parentId)
 
       changed: (newDoc, oldDoc) ->
-        node = getNode($tree, newDoc._id)
+        node = getNode(template, newDoc._id)
         # Only get one level of children and find their nodes. Children in deeper levels will be
         # updated by their own parents.
         data = model.docToNodeData(newDoc, {children: false})
         childDocs = model.getChildren(newDoc)
         data.children = _.map childDocs, (childDoc) ->
-          getNode($tree, childDoc._id)
+          getNode(template, childDoc._id)
         $tree.tree('updateNode', node, data)
         parent = newDoc.parent
         if parent != oldDoc.parent
-          sortResults = getSortedIndex($tree, newDoc)
+          sortResults = getSortedIndex(template, newDoc)
           nextSiblingNode = sortResults.nextSiblingNode
           if nextSiblingNode
             $tree.tree('moveNode', node, nextSiblingNode, 'before')
@@ -80,11 +81,11 @@ TemplateClass.rendered = ->
 
       removed: (oldDoc) ->
         id = oldDoc._id
-        node = getNode($tree, id)
+        node = getNode(template, id)
         # If the parent node is removed before the child, it will no longer exist and doesn't need
         # to be removed.
         return unless node
-        removeSelection($tree, [id])
+        removeSelection(template, [id])
         $tree.tree('removeNode', node)
 
 TemplateClass.destory = ->
@@ -102,22 +103,21 @@ TemplateClass.events
 # LOADING
 ####################################################################################################
 
-loadTree = (domNode) ->
-  template = getTemplate(domNode)
-  $em = $(getDomNode(domNode))
-  getTreeElement(domNode).remove()
+loadTree = (element) ->
+  template = getTemplate(element)
+  $em = getElement(element)
+  getTreeElement(element).remove()
   $tree = createTreeElement()
   $em.append($tree)
   model = template.model
   docs = Collections.getItems(template.items)
   treeData = model.docsToNodeData(docs)
-  settings = getSettings(domNode)
+  settings = getSettings(element)
   treeArgs =
     data: treeData
     autoOpen: settings.autoExpand
     selectable: settings.selectable
-  if settings.checkboxes
-    treeArgs.onCreateLi = onCreateNode.bind(null, template)
+  treeArgs.onCreateLi = onCreateNode.bind(null, template)
   $tree.tree(treeArgs)
 
 refreshTree = _.debounce(loadTree, 1000)
@@ -126,89 +126,83 @@ refreshTree = _.debounce(loadTree, 1000)
 # EXPANSION
 ####################################################################################################
 
-expandNode = ($tree, id) -> $tree.tree('openNode', getNode($tree, id))
+expandNode = (element, id) -> getTreeElement(element).tree('openNode', getNode(element, id))
 
-collapseNode = ($tree, id) -> $tree.tree('closeNode', getNode($tree, id))
+collapseNode = (element, id) -> getTreeElement(element).tree('closeNode', getNode(element, id))
 
 ####################################################################################################
 # SELECTION
 ####################################################################################################
 
-setSelectedIds = (domNode, ids) ->
-  return unless isSelectable(domNode)
-  result = getTemplate(domNode).selection.setIds(ids)
-  handleSelectionResult(domNode, result)
+setSelectedIds = (element, ids) ->
+  return unless isSelectable(element)
+  result = getTemplate(element).selection.setIds(ids)
+  handleSelectionResult(element, result)
 
-getSelectedIds = (domNode) -> getTemplate(domNode).selection.getIds()
+getSelectedIds = (element) -> getTemplate(element).selection.getIds()
 
-deselectAll = (domNode) ->
-  return unless isSelectable(domNode)
-  selectedIds = getTemplate(domNode).selection.removeAll()
-  handleSelectionResult(domNode, {added: selectedIds, removed: []})
+deselectAll = (element) ->
+  return unless isSelectable(element)
+  selectedIds = getTemplate(element).selection.removeAll()
+  handleSelectionResult(element, {added: selectedIds, removed: []})
 
-toggleSelection = (domNode, ids) ->
-  return unless isSelectable(domNode)
-  result = getTemplate(domNode).selection.toggle(ids)
-  handleSelectionResult(domNode, result)
+toggleSelection = (element, ids) ->
+  return unless isSelectable(element)
+  result = getTemplate(element).selection.toggle(ids)
+  handleSelectionResult(element, result)
 
-addSelection = (domNode, ids) ->
-  return unless isSelectable(domNode)
-  result = getTemplate(domNode).selection.add(ids)
-  handleSelectionResult(domNode, result)
+addSelection = (element, ids) ->
+  return unless isSelectable(element)
+  result = getTemplate(element).selection.add(ids)
+  handleSelectionResult(element, result)
 
-removeSelection = (domNode, ids) ->
-  return unless isSelectable(domNode)
-  result = getTemplate(domNode).selection.remove(ids)
-  handleSelectionResult(domNode, result)
+removeSelection = (element, ids) ->
+  return unless isSelectable(element)
+  result = getTemplate(element).selection.remove(ids)
+  handleSelectionResult(element, result)
 
-handleSelectionResult = (domNode, result) ->
-  $tree = getTreeElement(domNode)
-  _.each result.added, (id) -> _selectNode($tree, id)
-  _.each result.removed, (id) -> _deselectNode($tree, id)
-  $tree.trigger(selectEventName, result)
+handleSelectionResult = (element, result) ->
+  _.each result.added, (id) -> _selectNode(element, id)
+  _.each result.removed, (id) -> _deselectNode(element, id)
+  getTreeElement(element).trigger(selectEventName, result)
 
-selectNode = (domNode, id) -> addSelection(domNode, [id])
+selectNode = (element, id) -> addSelection(element, [id])
 
-deselectNode = (domNode, id) -> removeSelection(domNode, [id])
+deselectNode = (element, id) -> removeSelection(element, [id])
 
-_selectNode = (domNode, id) ->
-  $tree = getTreeElement(domNode)
-  $tree.tree('addToSelection', getNode($tree, id))
+_selectNode = (element, id) ->
+  getTreeElement(element).tree('addToSelection', getNode(element, id))
 
-_deselectNode = (domNode, id) ->
-  $tree = getTreeElement(domNode)
-  $tree.tree('removeFromSelection', getNode($tree, id))
+_deselectNode = (element, id) ->
+  getTreeElement(element).tree('removeFromSelection', getNode(element, id))
 
-isNodeSelected = (domNode, id) ->
-  $tree = getTreeElement(domNode)
-  !!$tree.tree('isNodeSelected', getNode($tree, id))
+isNodeSelected = (element, id) ->
+  !!getTreeElement(element).tree('isNodeSelected', getNode(element, id))
 
 handleSelectionEvent = (e, template) ->
-  $tree = template.$tree
   multiSelect = !template.selection.exclusive
   selectedNode = e.node
   return unless selectedNode
   selectedId = selectedNode.id
   if multiSelect
-    selectNode($tree, selectedId)
+    selectNode(template, selectedId)
   else
-    setSelectedIds($tree, [selectedId])
+    setSelectedIds(template, [selectedId])
 
 handleClickEvent = (e, template) ->
   return unless isSelectable(template)
-  $tree = template.$tree
   multiSelect = !template.selection.exclusive
   selectedNode = e.node
   selectedId = selectedNode.id
   # Disable single selection behaviour from taking effect.
   e.preventDefault()
   if multiSelect && e.click_event.metaKey
-    if isNodeSelected($tree, selectedId)
-      deselectNode($tree, selectedId)
+    if isNodeSelected(template, selectedId)
+      deselectNode(template, selectedId)
     else
-      selectNode($tree, selectedId)
+      selectNode(template, selectedId)
   else
-    setSelectedIds($tree, [selectedId])
+    setSelectedIds(template, [selectedId])
 
 isSelectable = (template) -> getSettings(template).selectable
 
@@ -219,7 +213,6 @@ isCheckable = (template) -> getSettings(template).checkboxes
 ####################################################################################################
 
 onCreateNode = (template, node, $em) ->
-  $tree = template.$tree
   settings = getSettings(template)
   checkboxes = template.checkboxes ?= []
   if settings.checkboxes
@@ -234,89 +227,85 @@ onCreateNode = (template, node, $em) ->
       isChecked = $checkbox.is(':checked')
       id = node.id
       if isChecked
-        checkNode($tree, id)
+        checkNode(template, id)
       else
-        uncheckNode($tree, id)
+        uncheckNode(template, id)
       if settings.recursiveCheck
-        _.each getNode($tree, id).children, (childNode) ->
+        _.each getNode(template, id).children, (childNode) ->
           # Check all children and trigger a change event so it's recursive.
-          getCheckbox($tree, childNode.id).prop('checked', isChecked).trigger('change')
+          getCheckbox(template, childNode.id).prop('checked', isChecked).trigger('change')
 
   $selectRow = $('<div class="jqtree-select-row"></div>')
   $('.jqtree-element', $em).append($selectRow)
 
-setCheckedIds = (domNode, ids) ->
-  return unless isCheckable(domNode)
-  result = getTemplate(domNode).check.setIds(ids)
-  handleCheckResult(domNode, result)
+setCheckedIds = (element, ids) ->
+  return unless isCheckable(element)
+  result = getTemplate(element).check.setIds(ids)
+  handleCheckResult(element, result)
 
-getCheckedIds = (domNode) -> getTemplate(domNode).check.getIds()
+getCheckedIds = (element) -> getTemplate(element).check.getIds()
 
-uncheckAll = (domNode) ->
-  return unless isCheckable(domNode)
-  selectedIds = getTemplate(domNode).check.removeAll()
-  handleCheckResult(domNode, {added: selectedIds, removed: []})
+uncheckAll = (element) ->
+  return unless isCheckable(element)
+  selectedIds = getTemplate(element).check.removeAll()
+  handleCheckResult(element, {added: selectedIds, removed: []})
 
-toggleChecked = (domNode, ids) ->
-  return unless isCheckable(domNode)
-  result = getTemplate(domNode).check.toggle(ids)
-  handleCheckResult(domNode, result)
+toggleChecked = (element, ids) ->
+  return unless isCheckable(element)
+  result = getTemplate(element).check.toggle(ids)
+  handleCheckResult(element, result)
 
-addChecked = (domNode, ids) ->
-  return unless isCheckable(domNode)
-  result = getTemplate(domNode).check.add(ids)
-  handleCheckResult(domNode, result)
+addChecked = (element, ids) ->
+  return unless isCheckable(element)
+  result = getTemplate(element).check.add(ids)
+  handleCheckResult(element, result)
 
-removeChecked = (domNode, ids) ->
-  return unless isCheckable(domNode)
-  result = getTemplate(domNode).check.remove(ids)
-  handleCheckResult(domNode, result)
+removeChecked = (element, ids) ->
+  return unless isCheckable(element)
+  result = getTemplate(element).check.remove(ids)
+  handleCheckResult(element, result)
 
-handleCheckResult = (domNode, result) ->
-  $tree = getTreeElement(domNode)
-  _.each result.added, (id) -> _checkNode($tree, id)
-  _.each result.removed, (id) -> _uncheckNode($tree, id)
-  $tree.trigger(checkEventName, result)
+handleCheckResult = (element, result) ->
+  _.each result.added, (id) -> _checkNode(element, id)
+  _.each result.removed, (id) -> _uncheckNode(element, id)
+  getTreeElement(element).trigger(checkEventName, result)
 
-checkNode = (domNode, id) -> addChecked(domNode, [id])
+checkNode = (element, id) -> addChecked(element, [id])
 
-uncheckNode = (domNode, id) -> removeChecked(domNode, [id])
+uncheckNode = (element, id) -> removeChecked(element, [id])
 
-getCheckbox = (domNode, id) ->
-  $tree = getTreeElement(domNode)
-  node = getNode($tree, id)
+getCheckbox = (element, id) ->
+  node = getNode(element, id)
   $('> .jqtree-element > .checkbox', node.element)
 
-_checkNode = (domNode, id) -> getCheckbox(domNode, id).prop('checked', true)
+_checkNode = (element, id) -> getCheckbox(element, id).prop('checked', true)
 
-_uncheckNode = (domNode, id) -> getCheckbox(domNode, id).prop('checked', false)
+_uncheckNode = (element, id) -> getCheckbox(element, id).prop('checked', false)
 
-isNodeChecked = (domNode, id) -> getCheckbox(domNode, id).prop('checked')
+isNodeChecked = (element, id) -> getCheckbox(element, id).prop('checked')
 
 ####################################################################################################
 # AUXILIARY
 ####################################################################################################
 
-getDomNode = (arg) ->
+getElement = (arg) ->
   template = getTemplate(arg)
   unless template then throw new Error('No template provided')
-  template.find('.tree')
+  template.$('.tree')
 
 getTemplate = (arg) ->
   if arg instanceof Blaze.TemplateInstance
     template = arg
   else
-    domNode = $(arg)[0]
-    if domNode
-      return Blaze.getView(domNode).templateInstance()
+    element = $(arg)[0]
+    if element
+      return Blaze.getView(element).templateInstance()
   try
     Templates.getNamedInstance(templateName, template)
   catch err
-    throw new Error('No domNode provided')
+    throw new Error('No element provided')
 
-getTreeElement = (arg) ->
-  template = getTemplate(arg)
-  template.$('.tree-inner')
+getTreeElement = (arg) -> getTemplate(arg).$('.tree-inner')
 
 createTreeElement = -> $('<div class="tree-inner"></div>')
 
@@ -336,20 +325,20 @@ getSettings = (arg) ->
 # NODES
 ####################################################################################################
 
-getNode = ($tree, id) -> $tree.tree('getNodeById', id)
+getNode = (element, id) -> getTreeElement(element).tree('getNodeById', id)
 
-getRootNode = ($tree) -> $tree.tree('getTree')
+getRootNode = (element) -> getTreeElement(element).tree('getTree')
 
-getSortedIndex = ($tree, doc) ->
-  template = getTemplate($tree)
-  $tree = template.$tree
+getSortedIndex = (element, doc) ->
+  template = getTemplate(element)
+  element = getElement(template)
   model = template.model
   collection = template.collection
   parent = model.getParent(doc)
   if parent
-    parentNode = getNode($tree, parent)
+    parentNode = getNode(element, parent)
   else
-    parentNode = getRootNode($tree)
+    parentNode = getRootNode(element)
   # This array will include the doc itself.
   siblings = model.getChildren(collection.findOne(parent))
   siblings.sort(model.compareDocs)
@@ -360,10 +349,7 @@ getSortedIndex = ($tree, doc) ->
       sortedIndex = i
   if siblings.length > 1 && sortedIndex != maxIndex
     nextSiblingDoc = siblings[sortedIndex + 1]
-    nextSiblingNode = getNode($tree, nextSiblingDoc._id)
-    # $tree.tree('addNodeBefore', data, nextSiblingNode)
-    # $tree.tree('appendNode', data, parentNode)
-  # else
+    nextSiblingNode = getNode(element, nextSiblingDoc._id)
   result =
     siblings: siblings
     maxIndex: maxIndex
@@ -480,7 +466,7 @@ class IdSet
 ####################################################################################################
 
 _.extend(TemplateClass, {
-  getDomNode: getDomNode
+  getElement: getElement
   getTemplate: getTemplate
   getSettings: getSettings
   

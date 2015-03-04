@@ -45,9 +45,10 @@ createItem = (template) ->
     typeof Router != 'undefined' && Router.go(template.createRoute)
 
 editItem = (template, args) ->
+  args ?= {}
   settings = getSettings(template)
+  ids = args.ids = args.ids ? Template.tree.getSelectedIds(template.$tree)
   defaultHandler = ->
-    ids = args.ids ? Template.tree.getSelectedIds(template.$tree)
     id = ids[0]
     typeof Router != 'undefined' && Router.go(template.editRoute, {
       _id: id
