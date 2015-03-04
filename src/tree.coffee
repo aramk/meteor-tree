@@ -29,7 +29,6 @@ TemplateClass.rendered = ->
   settings = getSettings()
   template = @
   loadTree(@)
-  $tree = getTreeElement(@)
 
   # Only a reactive cursor can observe for changes. A simple array can only render a tree once.
   return unless cursor
@@ -48,6 +47,7 @@ TemplateClass.rendered = ->
           return
         sortResults = getSortedIndex(template, newDoc)
         nextSiblingNode = sortResults.nextSiblingNode
+        $tree = getTreeElement(template)
         if nextSiblingNode
           $tree.tree('addNodeBefore', data, nextSiblingNode)
         else
@@ -69,6 +69,7 @@ TemplateClass.rendered = ->
         childDocs = model.getChildren(newDoc)
         data.children = _.map childDocs, (childDoc) ->
           getNode(template, childDoc._id)
+        $tree = getTreeElement(template)
         $tree.tree('updateNode', node, data)
         parent = newDoc.parent
         if parent != oldDoc.parent
@@ -86,6 +87,7 @@ TemplateClass.rendered = ->
         # to be removed.
         return unless node
         removeSelection(template, [id])
+        $tree = getTreeElement(template)
         $tree.tree('removeNode', node)
 
 TemplateClass.destory = ->
@@ -120,7 +122,23 @@ loadTree = (element) ->
   treeArgs.onCreateLi = onCreateNode.bind(null, template)
   $tree.tree(treeArgs)
 
-refreshTree = _.debounce(loadTree, 1000)
+# TODO(aramk) Put into utility.
+debounceLeft = (func, delay) ->
+  isPressed = true
+  handle = null
+  press = ->
+    isPressed = true
+    setTimeout((-> isPressed = false), delay)
+  wrapped = ->
+    if isPressed
+      press()
+      return
+    result = func.apply(null, arguments)
+    press()
+    result
+  wrapped
+
+refreshTree = debounceLeft(loadTree, 1000)
 
 ####################################################################################################
 # EXPANSION
