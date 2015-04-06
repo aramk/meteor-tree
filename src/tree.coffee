@@ -236,10 +236,10 @@ onCreateNode = (template, node, $em) ->
         _.each getNode(template, id).children, (childNode) ->
           # Check all children and trigger a change event so it's recursive.
           getCheckbox(template, childNode.id).prop('checked', isChecked).trigger('change')
-  onCreateNode = settings.onCreateNode
-  if onCreateNode
-    onCreateNode.apply(@, arguments)
-
+  callback = settings.onCreateNode
+  if callback
+    callback.apply(@, arguments)
+  # Add selection element which is shown when the row is selected.
   $selectRow = $('<div class="jqtree-select-row"></div>')
   $('.jqtree-element', $em).append($selectRow)
 
