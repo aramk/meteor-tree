@@ -1,7 +1,7 @@
 // Meteor package definition.
 Package.describe({
   name: 'aramk:tree',
-  version: '0.2.0',
+  version: '0.3.0',
   summary: 'A tree widget for displaying a collection of items in Meteor.',
   git: 'https://github.com/aramk/meteor-tree.git'
 });
