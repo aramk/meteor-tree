@@ -25,19 +25,70 @@ TemplateClass.rendered = ->
   data = @data
   model = @model
   items = @items
-  cursor = Collections.getCursor(items)
   settings = getSettings()
   template = @
-  loadTree(@)
+  # loadTree(@)
+  refreshTree(@)
+
+TemplateClass.destory = ->
+  _.each @checkboxes, ($checkbox) ->
+    # Remove bound events.
+    $checkbox.off()
+
+TemplateClass.events
+  'tree.select .tree': (e, template) -> handleSelectionEvent(e, template)
+  'tree.click .tree': (e, template) -> handleClickEvent(e, template)
+  'tree.dblclick .tree': (e, template) ->
+    id = e.node.id
+
+####################################################################################################
+# LOADING
+####################################################################################################
+
+loadTree = (element) ->
+  template = getTemplate(element)
+  $em = getElement(element)
+  getTreeElement(element).remove()
+  $tree = createTreeElement()
+  $em.append($tree)
+  model = template.model
+  docs = Collections.getItems(template.items)
+  treeData = model.docsToNodeData(docs)
+  settings = getSettings(element)
+  treeArgs =
+    data: treeData.data
+    autoOpen: settings.autoExpand
+    selectable: settings.selectable
+  treeArgs.onCreateLi = onCreateNode.bind(null, template)
+
+  # Check all new items if needed.
+  if settings.checked
+    template.check.setIds(_.keys(treeData.visited.ids))
+
+  $tree.tree(treeArgs)
+  setUpReactiveUpdates(template)
+
+# refreshTree = Functions.debounceLeft(loadTree, 1000)
+refreshTree = _.debounce(loadTree, 1000)
+
+setUpReactiveUpdates = (template) ->
+  return if template.isReactiveSetup
 
   # Only a reactive cursor can observe for changes. A simple array can only render a tree once.
+  cursor = Collections.getCursor(template.items)
   return unless cursor
-  @autorun ->
+
+  settings = getSettings(template)
+  model = template.model
+
+  template.autorun ->
 
     Collections.observe cursor,
       added: (newDoc) ->
         id = newDoc._id
         data = model.docToNodeData(newDoc, {children: false})
+        # Check all new items if needed.
+        if settings.checked then template.check.add([id])
         docParentId = model.getParent(data)
         unless docParentId
           # There is a significant memory leak caused by re-loading the entire tree after each
@@ -52,7 +103,7 @@ TemplateClass.rendered = ->
           $tree.tree('addNodeBefore', data, nextSiblingNode)
         else
           $tree.tree('appendNode', data, sortResults.parentNode)
-        autoExpand = getSettings(template).autoExpand
+        autoExpand = settings.autoExpand
         if autoExpand
           expandNode(template, id)
         parentNode = getNode(template, id).parent
@@ -90,39 +141,7 @@ TemplateClass.rendered = ->
         $tree = getTreeElement(template)
         $tree.tree('removeNode', node)
 
-TemplateClass.destory = ->
-  _.each @checkboxes, ($checkbox) ->
-    # Remove bound events.
-    $checkbox.off()
-
-TemplateClass.events
-  'tree.select .tree': (e, template) -> handleSelectionEvent(e, template)
-  'tree.click .tree': (e, template) -> handleClickEvent(e, template)
-  'tree.dblclick .tree': (e, template) ->
-    id = e.node.id
-
-####################################################################################################
-# LOADING
-####################################################################################################
-
-loadTree = (element) ->
-  template = getTemplate(element)
-  $em = getElement(element)
-  getTreeElement(element).remove()
-  $tree = createTreeElement()
-  $em.append($tree)
-  model = template.model
-  docs = Collections.getItems(template.items)
-  treeData = model.docsToNodeData(docs)
-  settings = getSettings(element)
-  treeArgs =
-    data: treeData
-    autoOpen: settings.autoExpand
-    selectable: settings.selectable
-  treeArgs.onCreateLi = onCreateNode.bind(null, template)
-  $tree.tree(treeArgs)
-
-refreshTree = Functions.debounceLeft(loadTree, 1000)
+  template.isReactiveSetup = true
 
 ####################################################################################################
 # EXPANSION
@@ -250,10 +269,17 @@ setCheckedIds = (element, ids) ->
 
 getCheckedIds = (element) -> getTemplate(element).check.getIds()
 
-uncheckAll = (element) ->
+setAllChecked = (element, check) ->
+  check ?= true
+  template = getTemplate(element)
   return unless isCheckable(element)
-  selectedIds = getTemplate(element).check.removeAll()
-  handleCheckResult(element, {added: selectedIds, removed: []})
+  if check
+    ids = template.collection.find().forEach (doc) -> doc._id
+    changedIds = template.check.setIds(ids).added
+    handleCheckResult(element, {added: changedIds, removed: []})
+  else
+    changedIds = template.check.removeAll()
+    handleCheckResult(element, {added: [], removed: changedIds})
 
 toggleChecked = (element, ids) ->
   return unless isCheckable(element)
@@ -373,11 +399,13 @@ class TreeModel
     unless @collection
       throw new Error('No collection provided when creating tree data')
   
-  getChildren: (doc) ->
+  getChildren: (doc, args) ->
+    args ?= {}
     # Search for root document if doc is undefined
     id = doc?._id ? null
     children = @collection.find({parent: id}).fetch()
     children.sort(@compareDocs)
+
     children
   
   hasChildren: (doc) -> @getChildren(doc).length == 0
@@ -389,13 +417,21 @@ class TreeModel
   docToNodeData: (doc, args) ->
     args = _.extend({
       children: true
+      visited: {count: 0, ids: {}}
     }, args)
+    return if args.visited.ids[doc._id]# || args.visited.count >= 200
+
+    args.visited.ids[doc._id] = true
+    args.visited.count++
     data =
       id: doc._id
       label: doc.name
     if args.children
       childrenDocs = @getChildren(doc)
-      childrenData = _.map childrenDocs, @docToNodeData, @
+      childrenData = []
+      _.each childrenDocs, (childDoc) =>
+        childData = @docToNodeData(childDoc, args)
+        if childData then childrenData.push(childData)
       data.children = childrenData
     data
 
@@ -403,10 +439,11 @@ class TreeModel
     data = []
     rootDocs = _.filter docs, (doc) => !@hasParent(doc)
     rootDocs.sort(@compareDocs)
+    args = {visited: {count: 0, ids: {}}}
     _.each rootDocs, (doc) =>
-      datum = @docToNodeData(doc)
+      datum = @docToNodeData(doc, args)
       data.push(datum)
-    data
+    Setter.merge {data: data}, args
 
   compareDocs: (docA, docB) ->
     if docA.name < docB.name then -1 else 1
@@ -458,7 +495,7 @@ class IdSet
     @remove(toRemove)
     toRemove
 
-  toggle: (ids) ->
+  toggle: (ids, enabled) ->
     existingIds = @getIds()
     toRemove = _.intersection(existingIds, ids)
     toAdd = _.difference(ids, existingIds)
@@ -491,7 +528,7 @@ _.extend(TemplateClass, {
   uncheckNode: uncheckNode
   setCheckedIds: setCheckedIds
   getCheckedIds: getCheckedIds
-  uncheckAll: uncheckAll
+  setAllChecked: setAllChecked
   toggleChecked: toggleChecked
   addChecked: addChecked
   removeChecked: removeChecked
