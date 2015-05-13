@@ -15,7 +15,7 @@ TemplateClass.created = ->
     items = @collection
   @items = items
 
-  @model = data.model ? new TreeModel(collection: @collection)
+  @model = data.model ? new TreeModel(collection: @collection, template: @)
   @selection = new IdSet({exclusive: !settings.multiSelect})
   @check = new IdSet({exclusive: false})
   # Allow modifying the underlying logic of the tree model.
@@ -398,14 +398,15 @@ class TreeModel
     @collection = args.collection
     unless @collection
       throw new Error('No collection provided when creating tree data')
+    @_setUpQueries(args)
   
   getChildren: (doc, args) ->
     args ?= {}
     # Search for root document if doc is undefined
     id = doc?._id ? null
-    children = @collection.find({parent: id}).fetch()
+    children = _.map _.keys(@_queries[id]?.children ? []), (childId) =>
+      @collection.findOne(childId)
     children.sort(@compareDocs)
-
     children
   
   hasChildren: (doc) -> @getChildren(doc).length == 0
@@ -448,6 +449,42 @@ class TreeModel
   compareDocs: (docA, docB) ->
     if docA.name < docB.name then -1 else 1
 
+  # Run queries beforehand to prevent the need for expensive queries for individual nodes.
+  _setUpQueries: (args) ->
+    template = args.template
+    unless template
+      throw new Error('Template instance is needed to observe collection.')
+    
+    @_queries = {}
+    setUp = (doc) =>
+      id = doc._id
+      parentId = doc.parent
+      queries = @_queries[id] ?= {}
+      if parentId?
+        queries.parent = parentId
+        parentQueries = @_queries[parentId] ?= {}
+        parentQueries.children ?= {}
+        parentQueries.children[id] = true
+    
+    removed = (doc) =>
+      id = doc._id
+      delete @_queries[id]
+      parentId = doc.parent
+      if parentId?
+        parentQueries = @_queries[parentId]
+        if parentQueries
+          children = parentQueries.children
+          delete children[id]
+
+    @collection.find({parent: {$exists: true}}).forEach (doc) => setUp(doc)
+
+    template.autorun =>
+      Collections.observe @collection,
+        added: setUp
+        changed: setUp
+        removed: removed
+        triggerExisting: true
+  
 
 class IdSet
 
