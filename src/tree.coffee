@@ -164,8 +164,14 @@ getSelectedIds = (element) -> getTemplate(element).selection.getIds()
 
 deselectAll = (element) ->
   return unless isSelectable(element)
-  selectedIds = getTemplate(element).selection.removeAll()
-  handleSelectionResult(element, {added: selectedIds, removed: []})
+  deselectedIds = getTemplate(element).selection.removeAll()
+  handleSelectionResult(element, {added: [], removed: deselectedIds})
+
+selectAll = (element) ->
+  return unless isSelectable(element)
+  ids = getTemplate(element).collection.find().map (doc) -> doc._id
+  result = getTemplate(element).selection.setIds(ids)
+  handleSelectionResult(element, result)
 
 toggleSelection = (element, ids) ->
   return unless isSelectable(element)
@@ -274,7 +280,7 @@ setAllChecked = (element, check) ->
   template = getTemplate(element)
   return unless isCheckable(element)
   if check
-    ids = template.collection.find().forEach (doc) -> doc._id
+    ids = template.collection.find().map (doc) -> doc._id
     changedIds = template.check.setIds(ids).added
     handleCheckResult(element, {added: changedIds, removed: []})
   else
@@ -556,6 +562,7 @@ _.extend(TemplateClass, {
   deselectNode: deselectNode
   setSelectedIds: setSelectedIds
   getSelectedIds: getSelectedIds
+  selectAll: selectAll
   deselectAll: deselectAll
   addSelection: addSelection
   removeSelection: removeSelection
