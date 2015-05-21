@@ -27,7 +27,6 @@ TemplateClass.rendered = ->
   items = @items
   settings = getSettings()
   template = @
-  # loadTree(@)
   refreshTree(@)
 
 TemplateClass.destory = ->
@@ -60,15 +59,13 @@ loadTree = (element) ->
     autoOpen: settings.autoExpand
     selectable: settings.selectable
   treeArgs.onCreateLi = onCreateNode.bind(null, template)
-
   # Check all new items if needed.
   if settings.checked
     template.check.setIds(_.keys(treeData.visited.ids))
-
   $tree.tree(treeArgs)
+  settings.onLoad?(template)
   setUpReactiveUpdates(template)
 
-# refreshTree = Functions.debounceLeft(loadTree, 1000)
 refreshTree = _.debounce(loadTree, 1000)
 
 setUpReactiveUpdates = (template) ->
