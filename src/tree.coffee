@@ -18,6 +18,8 @@ TemplateClass.created = ->
   @model = data.model ? new TreeModel(collection: @collection, template: @)
   @selection = new IdSet({exclusive: !settings.multiSelect})
   @check = new IdSet({exclusive: false})
+
+  @readyDf = Q.defer()
   # Allow modifying the underlying logic of the tree model.
   _.extend(@model, settings)
 
@@ -64,9 +66,10 @@ loadTree = (element) ->
     template.check.setIds(_.keys(treeData.visited.ids))
   $tree.tree(treeArgs)
   settings.onLoad?(template)
+  template.readyDf.resolve()
   setUpReactiveUpdates(template)
 
-refreshTree = _.debounce(loadTree, 1000)
+refreshTree = _.debounce(loadTree, 100)
 
 setUpReactiveUpdates = (template) ->
   return if template.isReactiveSetup
@@ -179,6 +182,9 @@ addSelection = (element, ids) ->
   return unless isSelectable(element)
   result = getTemplate(element).selection.add(ids)
   handleSelectionResult(element, result)
+
+setSelected = (element, ids, selected) ->
+  if selected then addSelection(element, ids) else removeSelection(element, ids)
 
 removeSelection = (element, ids) ->
   return unless isSelectable(element)
@@ -299,10 +305,16 @@ removeChecked = (element, ids) ->
   result = getTemplate(element).check.remove(ids)
   handleCheckResult(element, result)
 
+setChecked = (element, ids, checked) ->
+  if checked then addChecked(element, ids) else removeChecked(element, ids)
+
 handleCheckResult = (element, result) ->
-  _.each result.added, (id) -> _checkNode(element, id)
-  _.each result.removed, (id) -> _uncheckNode(element, id)
-  getTreeElement(element).trigger(checkEventName, result)
+  template = getTemplate(element)
+  # Wait until the tree has finished loading and elements are defined.
+  template.readyDf.promise.then ->
+    _.each result.added, (id) -> _checkNode(element, id)
+    _.each result.removed, (id) -> _uncheckNode(element, id)
+    getTreeElement(element).trigger(checkEventName, result)
 
 checkNode = (element, id) -> addChecked(element, [id])
 
@@ -541,7 +553,7 @@ class IdSet
     toAdd = _.difference(ids, existingIds)
     _.extend(@remove(toRemove), @add(toAdd))
 
-  contains: (id) -> !!@idsMap[id]
+  contains: (id) -> @idsMap[id]?
 
 ####################################################################################################
 # API
@@ -563,7 +575,8 @@ _.extend(TemplateClass, {
   deselectAll: deselectAll
   addSelection: addSelection
   removeSelection: removeSelection
-  isNodeSelected: isNodeSelected,
+  setSelected: setSelected
+  isNodeSelected: isNodeSelected
 
   checkNode: checkNode
   uncheckNode: uncheckNode
@@ -573,6 +586,7 @@ _.extend(TemplateClass, {
   toggleChecked: toggleChecked
   addChecked: addChecked
   removeChecked: removeChecked
+  setChecked: setChecked
   handleCheckResult: handleCheckResult
   isNodeChecked: isNodeChecked
 })

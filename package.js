@@ -16,7 +16,8 @@ Package.onUse(function (api) {
     'templating',
     'reactive-var@1.0.4',
     'aramk:utility@0.5.2',
-    'aramk:jqtree@1.0.0'
+    'aramk:jqtree@1.0.0',
+    'aramk:q@1.0.1_1'
   ], 'client');
   api.use([
     // Used for calling CRUD routes.
