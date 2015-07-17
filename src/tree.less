@@ -85,6 +85,12 @@ ul.jqtree-tree {
       margin-right: 0.5rem;
       vertical-align: middle;
     }
+    &.disabled {
+      opacity: 0.5;
+      .checkbox {
+        pointer-events: none;
+      }
+    }
   }
   li.jqtree-selected {
     .jqtree-element, .jqtree-element:hover {

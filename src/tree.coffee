@@ -18,6 +18,7 @@ TemplateClass.created = ->
   @model = data.model ? new TreeModel(collection: @collection, template: @)
   @selection = new IdSet({exclusive: !settings.multiSelect})
   @check = new IdSet({exclusive: false})
+  @disabledState = new IdSet({exclusive: false})
 
   @readyDf = Q.defer()
   # Allow modifying the underlying logic of the tree model.
@@ -312,8 +313,8 @@ handleCheckResult = (element, result) ->
   template = getTemplate(element)
   # Wait until the tree has finished loading and elements are defined.
   template.readyDf.promise.then ->
-    _.each result.added, (id) -> _checkNode(element, id)
-    _.each result.removed, (id) -> _uncheckNode(element, id)
+    _.each result.added, (id) -> _setNodeChecked(element, id, true)
+    _.each result.removed, (id) -> _setNodeChecked(element, id, false)
     getTreeElement(element).trigger(checkEventName, result)
 
 checkNode = (element, id) -> addChecked(element, [id])
@@ -324,11 +325,34 @@ getCheckbox = (element, id) ->
   node = getNode(element, id)
   $('> .jqtree-element > .checkbox', node.element)
 
-_checkNode = (element, id) -> getCheckbox(element, id).prop('checked', true)
-
-_uncheckNode = (element, id) -> getCheckbox(element, id).prop('checked', false)
+_setNodeChecked = (element, id, checked) -> getCheckbox(element, id).prop('checked', checked)
 
 isNodeChecked = (element, id) -> getCheckbox(element, id).prop('checked')
+
+####################################################################################################
+# ENABLED STATE
+####################################################################################################
+
+enableNode = (element, id) ->
+  result = getTemplate(element).disabledState.remove([id])
+  handleEnableResult(element, result)
+
+disableNode = (element, id) ->
+  result = getTemplate(element).disabledState.add([id])
+  handleEnableResult(element, result)
+
+setNodeEnabled = (element, id, enabled) ->
+  if enabled then enableNode(element, id) else disableNode(element, id)
+
+handleEnableResult = (element, result) ->
+  template = getTemplate(element)
+  template.readyDf.promise.then ->
+    _.each result.added, (id) -> _setNodeEnabled(element, id, false)
+    _.each result.removed, (id) -> _setNodeEnabled(element, id, true)
+
+_setNodeEnabled = (element, id, enabled) ->
+  node = getNode(element, id)
+  $('> .jqtree-element', node.element).toggleClass('disabled', !enabled)
 
 ####################################################################################################
 # AUXILIARY
@@ -512,7 +536,7 @@ class IdSet
     @exclusive = args.exclusive
 
   setIds: (ids) ->
-    existingIds = @getIds()
+    existingIds = @_getIdsNonReactive()
     toRemove = _.difference(existingIds, ids)
     toAdd = _.difference(ids, existingIds)
     @remove(toRemove)
@@ -521,8 +545,10 @@ class IdSet
 
   getIds: -> @ids.get()
 
+  _getIdsNonReactive: -> Tracker.nonreactive => @getIds()
+
   add: (ids) ->
-    existingIds = @getIds()
+    existingIds = @_getIdsNonReactive()
     toAdd = _.difference(ids, existingIds)
     newIds = _.union(existingIds, toAdd)
     if toAdd.length > 0
@@ -535,7 +561,7 @@ class IdSet
     {added: toAdd, removed: []}
 
   remove: (ids) ->
-    existingIds = @getIds()
+    existingIds = @_getIdsNonReactive()
     toRemove = _.intersection(existingIds, ids)
     newIds = _.difference(existingIds, toRemove)
     @ids.set(newIds)
@@ -543,12 +569,12 @@ class IdSet
     {added: [], removed: toRemove}
 
   removeAll: ->
-    toRemove = @getIds()
+    toRemove = @_getIdsNonReactive()
     @remove(toRemove)
     toRemove
 
   toggle: (ids, enabled) ->
-    existingIds = @getIds()
+    existingIds = @_getIdsNonReactive()
     toRemove = _.intersection(existingIds, ids)
     toAdd = _.difference(ids, existingIds)
     _.extend(@remove(toRemove), @add(toAdd))
@@ -564,6 +590,7 @@ _.extend(TemplateClass, {
   getTemplate: getTemplate
   getSettings: getSettings
   
+  getNode: getNode
   expandNode: expandNode
   collapseNode: collapseNode
   
@@ -589,4 +616,8 @@ _.extend(TemplateClass, {
   setChecked: setChecked
   handleCheckResult: handleCheckResult
   isNodeChecked: isNodeChecked
+
+  enableNode: enableNode
+  disableNode: disableNode
+  setNodeEnabled: setNodeEnabled
 })
