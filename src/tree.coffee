@@ -296,26 +296,27 @@ toggleChecked = (element, ids) ->
   result = getTemplate(element).check.toggle(ids)
   handleCheckResult(element, result)
 
-addChecked = (element, ids) ->
+addChecked = (element, ids, options) ->
   return unless isCheckable(element)
   result = getTemplate(element).check.add(ids)
-  handleCheckResult(element, result)
+  handleCheckResult(element, result, options)
 
-removeChecked = (element, ids) ->
+removeChecked = (element, ids, options) ->
   return unless isCheckable(element)
   result = getTemplate(element).check.remove(ids)
-  handleCheckResult(element, result)
+  handleCheckResult(element, result, options)
 
-setChecked = (element, ids, checked) ->
-  if checked then addChecked(element, ids) else removeChecked(element, ids)
+setChecked = (element, ids, checked, options) ->
+  if checked then addChecked(element, ids, options) else removeChecked(element, ids, options)
 
-handleCheckResult = (element, result) ->
+handleCheckResult = (element, result, options) ->
   template = getTemplate(element)
   # Wait until the tree has finished loading and elements are defined.
   template.readyDf.promise.then ->
     _.each result.added, (id) -> _setNodeChecked(element, id, true)
     _.each result.removed, (id) -> _setNodeChecked(element, id, false)
-    getTreeElement(element).trigger(checkEventName, result)
+    unless options?.disableEvents == true
+      getTreeElement(element).trigger(checkEventName, result)
 
 checkNode = (element, id) -> addChecked(element, [id])
 
