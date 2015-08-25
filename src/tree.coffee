@@ -30,7 +30,8 @@ TemplateClass.rendered = ->
   items = @items
   settings = getSettings()
   template = @
-  refreshTree(@)
+  @refreshTree = _.debounce(loadTree, 100)
+  @refreshTree(@)
 
 TemplateClass.destory = ->
   _.each @checkboxes, ($checkbox) ->
@@ -70,8 +71,6 @@ loadTree = (element) ->
   template.readyDf.resolve()
   setUpReactiveUpdates(template)
 
-refreshTree = _.debounce(loadTree, 100)
-
 setUpReactiveUpdates = (template) ->
   return if template.isReactiveSetup
 
@@ -95,7 +94,7 @@ setUpReactiveUpdates = (template) ->
           # There is a significant memory leak caused by re-loading the entire tree after each
           # change (e.g. if a node is added to the root node). Hence, we recreate the entire tree
           # just once after all updates are complete.
-          refreshTree(template)
+          template.refreshTree(template)
           return
         sortResults = getSortedIndex(template, newDoc)
         nextSiblingNode = sortResults.nextSiblingNode
