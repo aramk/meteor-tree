@@ -23,7 +23,7 @@ Package.onUse(function (api) {
     // Used for calling CRUD routes.
     'iron:router@1.0.7',
     // This is weak to allow using other UI frameworks if necessary.
-    'semantic:ui-css@1.12.3'
+    'semantic:ui-css@2.0.8'
   ], 'client', {weak: true});
   api.addFiles([
     'src/tree.html',
