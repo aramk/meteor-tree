@@ -15,9 +15,9 @@ Package.onUse(function (api) {
     'less',
     'templating',
     'reactive-var@1.0.4',
-    'aramk:utility@0.5.2',
     'aramk:jqtree@1.0.0',
-    'aramk:q@1.0.1_1'
+    'aramk:q@1.0.1_1',
+    'urbanetic:utility@1.0.0'
   ], 'client');
   api.use([
     // Used for calling CRUD routes.
