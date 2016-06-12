@@ -1,13 +1,13 @@
 // Meteor package definition.
 Package.describe({
   name: 'aramk:tree',
-  version: '0.3.1',
+  version: '0.4.0',
   summary: 'A tree widget for displaying a collection of items in Meteor.',
   git: 'https://github.com/aramk/meteor-tree.git'
 });
 
 Package.onUse(function (api) {
-  api.versionsFrom('METEOR@1.0');
+  api.versionsFrom('METEOR@1.2.0.1');
   api.use([
     'coffeescript',
     'underscore',
