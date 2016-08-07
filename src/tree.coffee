@@ -15,9 +15,10 @@ TemplateClass.created = ->
     items = @collection
   @items = items
 
+
   @model = data.model ? new TreeModel(collection: @collection, template: @)
-  @selection = new IdSet({exclusive: !settings.multiSelect})
-  @check = new IdSet({exclusive: false})
+  @selection = new IdSet(exclusive: !settings.multiSelect)
+  @check = new IdSet(exclusive: !settings.multiCheck)
   @disabledState = new IdSet({exclusive: false})
 
   @readyDf = Q.defer()
@@ -386,6 +387,7 @@ getSettings = (arg) ->
       autoExpand: true
       multiSelect: false
       selectable: true
+      multiCheck: true
       checkboxes: false
       recursiveCheck: true
     }, template.data.settings)
@@ -551,14 +553,16 @@ class IdSet
     existingIds = @_getIdsNonReactive()
     toAdd = _.difference(ids, existingIds)
     newIds = _.union(existingIds, toAdd)
+    toRemove = []
     if toAdd.length > 0
       if @exclusive
-        @removeAll()
+        removedIds = @removeAll()
         if newIds.length > 1
           newIds = toAdd = [ids[0]]
+        toRemove = _.difference(removedIds, toAdd)
       @ids.set(newIds)
     _.each toAdd, (id) => @idsMap[id] = true
-    {added: toAdd, removed: []}
+    {added: toAdd, removed: toRemove}
 
   remove: (ids) ->
     existingIds = @_getIdsNonReactive()
