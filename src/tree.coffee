@@ -40,8 +40,8 @@ TemplateClass.destory = ->
     $checkbox.off()
 
 TemplateClass.events
-  'tree.select .tree': (e, template) -> handleSelectionEvent(e, template)
-  'tree.click .tree': (e, template) -> handleClickEvent(e, template)
+  'tree.select .tree': (e, template) -> handleSelectionEvent e, template, {source: 'dom'}
+  'tree.click .tree': (e, template) -> handleClickEvent e, template, {source: 'dom'}
   'tree.dblclick .tree': (e, template) ->
     id = e.node.id
 
@@ -156,10 +156,10 @@ collapseNode = (element, id) -> getTreeElement(element).tree('closeNode', getNod
 # SELECTION
 ####################################################################################################
 
-setSelectedIds = (element, ids) ->
+setSelectedIds = (element, ids, context) ->
   return unless isSelectable(element)
   result = getTemplate(element).selection.setIds(ids)
-  handleSelectionResult(element, result)
+  handleSelectionResult element, result, context
 
 getSelectedIds = (element) -> getTemplate(element).selection.getIds()
 
@@ -179,27 +179,28 @@ toggleSelection = (element, ids) ->
   result = getTemplate(element).selection.toggle(ids)
   handleSelectionResult(element, result)
 
-addSelection = (element, ids) ->
+addSelection = (element, ids, context) ->
   return unless isSelectable(element)
   result = getTemplate(element).selection.add(ids)
-  handleSelectionResult(element, result)
+  handleSelectionResult element, result, context
 
 setSelected = (element, ids, selected) ->
   if selected then addSelection(element, ids) else removeSelection(element, ids)
 
-removeSelection = (element, ids) ->
+removeSelection = (element, ids, context) ->
   return unless isSelectable(element)
   result = getTemplate(element).selection.remove(ids)
-  handleSelectionResult(element, result)
+  handleSelectionResult element, result, context
 
-handleSelectionResult = (element, result) ->
+handleSelectionResult = (element, result, context) ->
   _.each result.added, (id) -> _selectNode(element, id)
   _.each result.removed, (id) -> _deselectNode(element, id)
+  if context? then result.context = context
   getTreeElement(element).trigger(selectEventName, result)
 
-selectNode = (element, id) -> addSelection(element, [id])
+selectNode = (element, id, context) -> addSelection element, [id], context
 
-deselectNode = (element, id) -> removeSelection(element, [id])
+deselectNode = (element, id, context) -> removeSelection element, [id], context
 
 _selectNode = (element, id) ->
   getTreeElement(element).tree('addToSelection', getNode(element, id))
@@ -210,17 +211,17 @@ _deselectNode = (element, id) ->
 isNodeSelected = (element, id) ->
   !!getTreeElement(element).tree('isNodeSelected', getNode(element, id))
 
-handleSelectionEvent = (e, template) ->
+handleSelectionEvent = (e, template, context) ->
   multiSelect = !template.selection.exclusive
   selectedNode = e.node
   return unless selectedNode
   selectedId = selectedNode.id
   if multiSelect
-    selectNode(template, selectedId)
+    selectNode template, selectedId, context
   else
-    setSelectedIds(template, [selectedId])
+    setSelectedIds template, [selectedId], context
 
-handleClickEvent = (e, template) ->
+handleClickEvent = (e, template, context) ->
   return unless isSelectable(template)
   multiSelect = !template.selection.exclusive
   selectedNode = e.node
@@ -229,11 +230,11 @@ handleClickEvent = (e, template) ->
   e.preventDefault()
   if multiSelect && e.click_event.metaKey
     if isNodeSelected(template, selectedId)
-      deselectNode(template, selectedId)
+      deselectNode template, selectedId, context
     else
-      selectNode(template, selectedId)
+      selectNode template, selectedId, context
   else
-    setSelectedIds(template, [selectedId])
+    setSelectedIds template, [selectedId], context
 
 isSelectable = (template) -> getSettings(template).selectable
 
