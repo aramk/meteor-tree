@@ -1,13 +1,13 @@
 // Meteor package definition.
 Package.describe({
   name: 'aramk:tree',
-  version: '0.4.0',
+  version: '1.0.0',
   summary: 'A tree widget for displaying a collection of items in Meteor.',
   git: 'https://github.com/aramk/meteor-tree.git'
 });
 
 Package.onUse(function (api) {
-  api.versionsFrom('METEOR@1.2.0.1');
+  api.versionsFrom('METEOR@1.6.1');
   api.use([
     'coffeescript',
     'underscore',
@@ -15,15 +15,15 @@ Package.onUse(function (api) {
     'less',
     'templating',
     'reactive-var@1.0.4',
-    'aramk:jqtree@1.0.0',
+    'aramk:jqtree@2.0.0',
     'aramk:q@1.0.1_1',
-    'urbanetic:utility@1.0.0'
+    'urbanetic:utility@2.0.1'
   ], 'client');
   api.use([
     // Used for calling CRUD routes.
     'iron:router@1.0.7',
     // This is weak to allow using other UI frameworks if necessary.
-    'semantic:ui-css@2.0.8'
+    'semantic:ui-css@2.1.2'
   ], 'client', {weak: true});
   api.addFiles([
     'src/tree.html',
